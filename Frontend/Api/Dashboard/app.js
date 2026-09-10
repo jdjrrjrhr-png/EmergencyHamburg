@@ -72,6 +72,7 @@ const UI = {
             eyeOff:     `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`,
             copy:       `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
             person:     `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+            chart:      `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
         };
         return icons[name] || '';
     },
@@ -203,8 +204,21 @@ function renderNavUser() {
    ROUTER
 ================================================================ */
 const App = {
+    config: null,
+
+    async loadConfig() {
+        if (App.config) return App.config;
+        try {
+            const res = await fetch(BASE_URL + '/config.json');
+            App.config = await res.json();
+        } catch { App.config = {}; }
+        return App.config;
+    },
+
     navigate(page, params = {}) {
         stopAllPolls();
+        Chat.removeFab();
+        SideMenu.close();
         State.serverCode = params.serverCode || null;
         State.selectedPlayer = null;
 
@@ -343,9 +357,12 @@ const Pages = {
         State.dutyStatus = 'Online';
         State.chatMessages = [];
         State.auditLogs = [];
+        State.currentView = 'main';
 
         const app = document.getElementById('app');
         app.innerHTML = ServerView.html(serverCode);
+        Chat.renderFab();
+        MapView.initInteraction();
 
         // Start all polls
         startPoll('players', ServerView.fetchPlayers, CFG.playersPollInterval);
@@ -366,9 +383,12 @@ const ServerView = {
     html(serverCode) {
         return `
         <div id="page-server">
-            <!-- TOP BAR -->
+            <!-- TOP BAR (persists across every side-menu view — always shows server name + join code) -->
             <div class="server-topbar">
                 <div class="server-topbar-left">
+                    <button class="side-menu-btn" onclick="SideMenu.toggle()" title="Menu">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                    </button>
                     <button class="action-btn" onclick="App.navigate('servers')">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                         Servers
@@ -388,23 +408,25 @@ const ServerView = {
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                         Commands
                     </button>
-                    <button class="action-btn" onclick="Modals.punishedUsers()">
-                        ${UI.icon('ban')}
-                        Punished
-                    </button>
                     <button class="action-btn" onclick="Modals.serverModal()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
                         Server
                     </button>
-                    ${State.user?.role === 'owner' ? `<button class="action-btn red" onclick="Modals.apiKey()">
-                        ${UI.icon('key')} API Key
-                    </button>` : ''}
                 </div>
             </div>
 
-            <!-- 3-COLUMN BODY -->
-            <div class="server-body">
-                <!-- LEFT: Duty + Staff -->
+            <!-- SWAPPABLE BODY — side menu items replace this container's content
+                 entirely (their own dedicated view), the topbar above never changes. -->
+            <div id="server-body-container" class="server-body">
+                ${ServerView.mainViewHtml()}
+            </div>
+        </div>`;
+    },
+
+    /* ── MAIN VIEW (default) ── */
+    mainViewHtml() {
+        return `
+                <!-- LEFT: Duty + Teams -->
                 <div class="server-col">
                     <!-- Duty Control -->
                     <div class="panel">
@@ -421,14 +443,6 @@ const ServerView = {
                         </div>
                     </div>
 
-                    <!-- Staff Status -->
-                    <div class="panel" style="flex:1">
-                        <div class="panel-header">Staff Status</div>
-                        <div class="panel-body" id="staff-list" style="display:flex;flex-direction:column;gap:5px">
-                            <div style="color:var(--muted);font-size:0.78rem;text-align:center;padding:1rem">Loading</div>
-                        </div>
-                    </div>
-
                     <!-- Teams Summary -->
                     <div class="panel">
                         <div class="panel-header">Teams</div>
@@ -439,14 +453,17 @@ const ServerView = {
                 </div>
 
                 <!-- CENTER: Members + Map + Audit -->
-                <div class="server-col" id="center-col">
+                <div class="server-col" id="center-col" style="border-right:none">
                     <!-- Member List -->
-                    <div class="panel" style="flex:1;min-height:280px;display:flex;flex-direction:column">
-                        <div class="panel-header">
+                    <div class="panel" id="member-panel" style="flex:1;min-height:280px;display:flex;flex-direction:column">
+                        <div class="panel-header collapsible" onclick="PanelUtil.toggle('member-panel')">
                             Members (<span id="player-count">0</span>)
+                            <button class="panel-collapse-btn" title="Collapse">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
                         </div>
-                        <div style="padding:8px 10px;border-bottom:1px solid var(--border2)">
-                            <div class="member-search-wrap" style="margin:0">
+                        <div class="search-bar-wrap" style="padding:8px 10px;margin:0;border-bottom:1px solid var(--border2)">
+                            <div class="member-search-wrap" style="margin:0" onclick="event.stopPropagation()">
                                 ${UI.icon('search')}
                                 <input class="member-search" id="member-search" placeholder="Search by username or display name" oninput="MemberList.filter(this.value)">
                             </div>
@@ -464,45 +481,90 @@ const ServerView = {
                                 <span id="map-status-badge" style="font-size:0.68rem;color:var(--muted)">Inactive</span>
                             </div>
                         </div>
-                        <div class="map-container" id="map-container" style="height:240px">
-                            <img src="/img/TopdownMap.png" id="map-image" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none'">
-                            <div id="map-players-layer" style="position:absolute;inset:0"></div>
-                            <div id="map-locations-layer" style="position:absolute;inset:0"></div>
+                        <div class="map-container" id="map-container" style="height:260px">
+                            <div class="map-zoom-wrap" id="map-zoom-wrap">
+                                <img src="/img/TopdownMap.png" id="map-image" onerror="this.style.display='none'">
+                                <div id="map-players-layer" style="position:absolute;inset:0"></div>
+                                <div id="map-locations-layer" style="position:absolute;inset:0"></div>
+                            </div>
                             <div class="map-overlay-msg" id="map-overlay">
                                 At least 10 players needed for map streaming
+                            </div>
+                            <div class="map-zoom-controls">
+                                <button class="map-zoom-btn" onclick="MapView.zoomBy(0.25)">+</button>
+                                <button class="map-zoom-btn" onclick="MapView.zoomBy(-0.25)">−</button>
+                                <button class="map-zoom-btn" onclick="MapView.resetView()" title="Reset">⟲</button>
                             </div>
                         </div>
                         <div class="map-filters" id="map-filters"></div>
                     </div>
 
                     <!-- Audit Log -->
-                    <div class="panel" style="flex:1;min-height:200px;display:flex;flex-direction:column">
-                        <div class="panel-header">
+                    <div class="panel" id="audit-panel" style="flex:1;min-height:200px;display:flex;flex-direction:column">
+                        <div class="panel-header collapsible" onclick="PanelUtil.toggle('audit-panel', event)">
                             Audit Logs
-                            <button class="icon-btn" style="width:26px;height:26px" onclick="AuditLog.showFilter()" title="Filter">
-                                ${UI.icon('filter')}
-                            </button>
+                            <div style="display:flex;align-items:center;gap:4px">
+                                <button class="icon-btn" style="width:26px;height:26px" onclick="event.stopPropagation();AuditLog.showFilter()" title="Filter">
+                                    ${UI.icon('filter')}
+                                </button>
+                                <button class="panel-collapse-btn" title="Collapse">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                            </div>
                         </div>
                         <div id="audit-list" style="flex:1;overflow-y:auto;padding:0 10px">
                             <div style="color:var(--muted);font-size:0.78rem;text-align:center;padding:1.5rem">Loading</div>
                         </div>
                     </div>
-                </div>
+                </div>`;
+    },
 
-                <!-- RIGHT: Chat -->
-                <div class="server-col" style="display:flex;flex-direction:column;padding:0">
-                    <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.78rem;font-weight:600;color:var(--text2)">
-                        Session Chat
-                    </div>
-                    <div class="chat-messages" id="chat-messages"></div>
-                    <div class="chat-input-wrap">
-                        <input class="chat-input" id="chat-input" placeholder="Send a message" maxlength="300"
-                            onkeydown="if(event.key==='Enter')Chat.send()">
-                        <button class="chat-send-btn" onclick="Chat.send()">${UI.icon('send')}</button>
-                    </div>
-                </div>
+    /* ── VIEW SWITCHING (Side Menu navigates here, never opens a modal for these) ── */
+    switchView(view) {
+        State.currentView = view;
+        const container = document.getElementById('server-body-container');
+        if (!container) return;
+
+        if (view === 'main') {
+            container.className = 'server-body';
+            container.innerHTML = ServerView.mainViewHtml();
+            MapView.initInteraction();
+            // Repaint immediately from whatever the background polls already have,
+            // instead of waiting up to a few seconds for the next tick.
+            MemberList.render(State.players || []);
+            ServerView.renderTeams(State.serverData?.teamsSummary || {});
+            AuditLog.render(State.auditLogs || []);
+            MapView.renderPlayers(State.positions || []);
+            MapView.renderLocations(State.locations || []);
+            MapView.updateOverlay((State.players || []).length);
+            Duty.updateUI(State.dutyStatus || 'Offline');
+            return;
+        }
+
+        container.className = 'server-body-full';
+        container.innerHTML = `<div class="page-view-panel">
+            <div class="page-view-header">${ServerView.viewTitle(view)}</div>
+            <div id="page-view-content">
+                <div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:2rem">Loading</div>
             </div>
         </div>`;
+        ServerView.renderPageView(view);
+    },
+
+    viewTitle(view) {
+        return {
+            staff: `${UI.icon('users')} Staff Status`,
+            punished: `${UI.icon('ban')} Punished Users`,
+            stats: `${UI.icon('chart')} Stats`,
+            apikey: `${UI.icon('key')} Server API Key`
+        }[view] || view;
+    },
+
+    renderPageView(view) {
+        if (view === 'staff')    return PageViews.staff();
+        if (view === 'punished') return PageViews.punished();
+        if (view === 'stats')    return PageViews.stats();
+        if (view === 'apikey')   return PageViews.apiKey();
     },
 
     async fetchPlayers() {
@@ -510,8 +572,18 @@ const ServerView = {
         const sc = State.serverCode;
         if (!sc) return;
 
-        const { ok, data } = await api('GET', `/api/servers/${sc}/players?userId=${u.userId}&senderId=${u.userId}`, null, true);
-        if (!ok) return;
+        const { ok, data, status } = await api('GET', `/api/servers/${sc}/players?userId=${u.userId}&senderId=${u.userId}`, null, true);
+
+        // The server actually went offline (shut down / removed) — the old
+        // behavior left the admin stranded on this page forever. Kick them back
+        // to the server list, same as if they'd navigated there themselves.
+        if (!ok) {
+            if (status === 404) {
+                toast('This server has gone offline', 'warn');
+                App.navigate('servers');
+            }
+            return;
+        }
 
         State.players = data.players || [];
         State.serverData = data;
@@ -582,27 +654,10 @@ const ServerView = {
     },
 
     renderStaff(staff) {
-        const el = document.getElementById('staff-list');
-        if (!el) return;
-        if (!staff.length) {
-            el.innerHTML = `<div style="color:var(--muted);font-size:0.78rem;text-align:center;padding:1rem">No staff online</div>`;
-            return;
-        }
-        const statusLabel = { on_duty: 'On Duty', break: 'On Break', Online: 'Online', Offline: 'Offline' };
-        el.innerHTML = staff.map(m => {
-            const since = m.updatedAt ? UI.timeAgo(new Date(m.updatedAt).getTime()) : '';
-            return `<div class="staff-item">
-                <img class="staff-avatar" src="${UI.avatar(m.userId)}" alt="">
-                <div style="flex:1;min-width:0">
-                    <div class="staff-name">${m.username}</div>
-                    <div class="staff-duration">${since}</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:5px">
-                    <span class="status-dot ${m.status}"></span>
-                    <span class="staff-status">${statusLabel[m.status] || m.status}</span>
-                </div>
-            </div>`;
-        }).join('');
+        // Staff Status now lives behind the side menu (Modals.staffStatusFull) —
+        // refresh it live if it happens to be open right now.
+        const modalEl = document.getElementById('staff-status-full-list');
+        if (modalEl) Modals._renderStaffStatusList(staff, modalEl);
     },
 
     showShutdownBanner(sched) {
@@ -689,18 +744,23 @@ const Duty = {
         if (status === 'on_duty') {
             badge.textContent = 'On Duty';
             badge.style.cssText = 'background:var(--green-bg);color:var(--green)';
+            if (btnStart) btnStart.textContent = 'Start Shift';
             btnStart?.classList.add('dimmed');
             btnBreak?.classList.remove('dimmed');
             btnEnd?.classList.remove('dimmed');
         } else if (status === 'break') {
             badge.textContent = 'On Break';
             badge.style.cssText = 'background:var(--amber-bg);color:var(--amber)';
-            btnStart?.classList.add('dimmed');
+            // On break, "Start Shift" doesn't make sense — same action just resumes
+            // the shift, so relabel it "Continue Shift" instead of leaving it disabled.
+            if (btnStart) btnStart.textContent = 'Continue Shift';
+            btnStart?.classList.remove('dimmed');
             btnBreak?.classList.add('dimmed');
             btnEnd?.classList.remove('dimmed');
         } else {
             badge.textContent = 'Offline';
             badge.style.cssText = 'background:var(--surface2);color:var(--muted)';
+            if (btnStart) btnStart.textContent = 'Start Shift';
             btnStart?.classList.remove('dimmed');
             btnBreak?.classList.add('dimmed');
             btnEnd?.classList.add('dimmed');
@@ -764,13 +824,21 @@ const MemberList = {
     },
 
     isAdmin(userId) {
+        // Prefer the authoritative role now attached to each live player (works even
+        // if they never opened the dashboard, unlike the old active-staff-only check).
+        const p = State.players.find(p => p.userId === userId);
+        if (p?.role) return p.role === 'admin' || p.role === 'owner';
         return State.staff.some(s => s.userId === userId && (s.role === 'admin' || s.role === 'owner'));
     },
     isOwner(userId) {
+        const p = State.players.find(p => p.userId === userId);
+        if (p?.role) return p.role === 'owner';
         return State.staff.some(s => s.userId === userId && s.role === 'owner');
     },
 
     getRank(userId) {
+        const p = State.players.find(p => p.userId === userId);
+        if (p?.role) return p.role;
         const s = State.staff.find(s => s.userId === userId);
         return s?.role || 'user';
     },
@@ -917,10 +985,73 @@ const AuditLog = {
 };
 
 /* ================================================================
-   CHAT
+   CHAT (floating button + panel, unread badge incl. system messages)
 ================================================================ */
 const Chat = {
     _lastCount: 0,
+    _unread: 0,
+    _panelOpen: false,
+
+    renderFab() {
+        if (document.getElementById('chat-fab')) return;
+        const fab = document.createElement('button');
+        fab.id = 'chat-fab';
+        fab.className = 'chat-fab';
+        fab.title = 'Session Chat';
+        fab.onclick = Chat.togglePanel;
+        fab.innerHTML = `${UI.icon('send')}<span class="chat-fab-badge" id="chat-fab-badge" style="display:none">0</span>`;
+        document.body.appendChild(fab);
+    },
+
+    removeFab() {
+        document.getElementById('chat-fab')?.remove();
+        document.getElementById('chat-panel')?.remove();
+        Chat._panelOpen = false;
+    },
+
+    togglePanel() {
+        Chat._panelOpen ? Chat.closePanel() : Chat.openPanel();
+    },
+
+    openPanel() {
+        if (document.getElementById('chat-panel')) return;
+        Chat._panelOpen = true;
+        Chat._unread = 0;
+        Chat.updateBadge();
+
+        const panel = document.createElement('div');
+        panel.id = 'chat-panel';
+        panel.className = 'chat-panel';
+        panel.innerHTML = `
+            <div class="chat-panel-header">
+                <span>Session Chat</span>
+                <button class="modal-close" onclick="Chat.closePanel()">${UI.icon('close')}</button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-wrap">
+                <input class="chat-input" id="chat-input" placeholder="Send a message" maxlength="300"
+                    onkeydown="if(event.key==='Enter')Chat.send()">
+                <button class="chat-send-btn" onclick="Chat.send()">${UI.icon('send')}</button>
+            </div>`;
+        document.body.appendChild(panel);
+        Chat.render(State.chatMessages);
+    },
+
+    closePanel() {
+        Chat._panelOpen = false;
+        document.getElementById('chat-panel')?.remove();
+    },
+
+    updateBadge() {
+        const badge = document.getElementById('chat-fab-badge');
+        if (!badge) return;
+        if (Chat._unread > 0) {
+            badge.style.display = 'flex';
+            badge.textContent = Chat._unread > 99 ? '99+' : Chat._unread;
+        } else {
+            badge.style.display = 'none';
+        }
+    },
 
     async fetch() {
         const sc = State.serverCode;
@@ -931,8 +1062,15 @@ const Chat = {
         if (!ok) return;
 
         if (data.messages.length !== Chat._lastCount) {
+            const diff = data.messages.length - Chat._lastCount;
             Chat._lastCount = data.messages.length;
             State.chatMessages = data.messages;
+            // Every new message counts toward the unread badge (including system
+            // messages) unless the chat panel is currently open.
+            if (!Chat._panelOpen && diff > 0) {
+                Chat._unread += diff;
+                Chat.updateBadge();
+            }
             Chat.render(data.messages);
         }
     },
@@ -988,6 +1126,12 @@ const Chat = {
    MAP VIEW
 ================================================================ */
 const MapView = {
+    _zoom: 1,
+    _panX: 0,
+    _panY: 0,
+    _dragging: false,
+    _dragStart: null,
+
     async fetchPositions() {
         const sc = State.serverCode;
         const u  = State.user;
@@ -1004,11 +1148,80 @@ const MapView = {
     },
 
     worldToMap(x, z) {
-        // Read bounds from config.json (hardcoded here, matching config.json)
-        const X_min = -800, X_max = 800, Z_min = -800, Z_max = 800;
-        const left = ((x - X_min) / (X_max - X_min)) * 100;
-        const top  = ((z - Z_min) / (Z_max - Z_min)) * 100;
+        const bounds = App.config?.mapBounds || { X_min: -800, X_max: 800, Z_min: -800, Z_max: 800 };
+        const left = ((x - bounds.X_min) / (bounds.X_max - bounds.X_min)) * 100;
+        const top  = ((z - bounds.Z_min) / (bounds.Z_max - bounds.Z_min)) * 100;
         return { left: Math.min(100, Math.max(0, left)), top: Math.min(100, Math.max(0, top)) };
+    },
+
+    /* ── PAN / ZOOM ── */
+    initInteraction() {
+        const container = document.getElementById('map-container');
+        const wrap = document.getElementById('map-zoom-wrap');
+        if (!container || !wrap) return;
+
+        MapView._zoom = 1; MapView._panX = 0; MapView._panY = 0;
+        MapView._applyTransform();
+
+        container.onwheel = (e) => {
+            e.preventDefault();
+            MapView.zoomBy(e.deltaY < 0 ? 0.15 : -0.15, e.offsetX, e.offsetY);
+        };
+
+        container.onmousedown = (e) => {
+            MapView._dragging = true;
+            container.classList.add('grabbing');
+            MapView._dragStart = { x: e.clientX, y: e.clientY, panX: MapView._panX, panY: MapView._panY };
+        };
+        window.addEventListener('mousemove', MapView._onDragMove);
+        window.addEventListener('mouseup', MapView._onDragEnd);
+
+        // Basic touch support (pan only — pinch zoom omitted for simplicity)
+        container.ontouchstart = (e) => {
+            if (e.touches.length !== 1) return;
+            MapView._dragging = true;
+            MapView._dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX: MapView._panX, panY: MapView._panY };
+        };
+        container.ontouchmove = (e) => {
+            if (!MapView._dragging || e.touches.length !== 1) return;
+            const dx = e.touches[0].clientX - MapView._dragStart.x;
+            const dy = e.touches[0].clientY - MapView._dragStart.y;
+            MapView._panX = MapView._dragStart.panX + dx;
+            MapView._panY = MapView._dragStart.panY + dy;
+            MapView._applyTransform();
+        };
+        container.ontouchend = () => { MapView._dragging = false; };
+    },
+
+    _onDragMove(e) {
+        if (!MapView._dragging) return;
+        const dx = e.clientX - MapView._dragStart.x;
+        const dy = e.clientY - MapView._dragStart.y;
+        MapView._panX = MapView._dragStart.panX + dx;
+        MapView._panY = MapView._dragStart.panY + dy;
+        MapView._applyTransform();
+    },
+
+    _onDragEnd() {
+        MapView._dragging = false;
+        document.getElementById('map-container')?.classList.remove('grabbing');
+    },
+
+    zoomBy(delta) {
+        MapView._zoom = Math.max(1, Math.min(4, MapView._zoom + delta));
+        if (MapView._zoom === 1) { MapView._panX = 0; MapView._panY = 0; }
+        MapView._applyTransform();
+    },
+
+    resetView() {
+        MapView._zoom = 1; MapView._panX = 0; MapView._panY = 0;
+        MapView._applyTransform();
+    },
+
+    _applyTransform() {
+        const wrap = document.getElementById('map-zoom-wrap');
+        if (!wrap) return;
+        wrap.style.transform = `translate(${MapView._panX}px, ${MapView._panY}px) scale(${MapView._zoom})`;
     },
 
     updateOverlay(playerCount) {
@@ -1093,10 +1306,13 @@ const MapView = {
 
         layer.innerHTML = (locations || []).flatMap(loc => {
             return (loc.positions || []).map(pos => {
-                const { left, top } = MapView.worldToMap(pos.x || pos.x, pos.z || pos.y);
+                const { left, top } = MapView.worldToMap(pos.x, pos.z ?? pos.y);
+                const iconHtml = loc.hasIcon
+                    ? `<img src="${loc.iconUrl}" class="map-location-dot" style="object-fit:cover">`
+                    : `<div class="map-location-dot">${loc.name.slice(0,2)}</div>`;
                 return `<div class="map-location-marker" style="left:${left}%;top:${top}%">
-                    <div class="map-location-dot">${loc.name.slice(0,2)}</div>
-                    <div class="map-location-label">${loc.text || loc.name}</div>
+                    ${iconHtml}
+                    ${loc.text ? `<div class="map-location-label">${loc.text}</div>` : ''}
                 </div>`;
             });
         }).join('');
@@ -1123,8 +1339,281 @@ const MapView = {
 };
 
 /* ================================================================
-   MODALS
+   PANEL COLLAPSE UTILITY
 ================================================================ */
+const PanelUtil = {
+    toggle(panelId, evt) {
+        if (evt && evt.target.closest('button') && !evt.target.closest('.panel-collapse-btn')) return;
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        panel.classList.toggle('collapsed');
+    }
+};
+
+/* ================================================================
+   SIDE MENU (Main / Staff Status / Punished Users / API Key)
+================================================================ */
+const SideMenu = {
+    _open: false,
+
+    toggle() {
+        SideMenu._open ? SideMenu.close() : SideMenu.openMenu();
+    },
+
+    openMenu() {
+        SideMenu._open = true;
+        const isOwner = State.user?.role === 'owner';
+        const current = State.currentView || 'main';
+        const item = (view, icon, label) => `
+            <button class="side-menu-item ${current === view ? 'active' : ''}" onclick="SideMenu.close();ServerView.switchView('${view}')">
+                ${icon}
+                ${label}
+            </button>`;
+        const extra = document.createElement('div');
+        extra.id = 'side-menu-root';
+        extra.innerHTML = `
+        <div class="side-menu-overlay" onclick="SideMenu.close()"></div>
+        <div class="side-menu-panel">
+            <div class="side-menu-title">Navigate</div>
+            ${item('main', '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>', 'Main')}
+            ${item('staff', UI.icon('users'), 'Staff Status')}
+            ${item('punished', UI.icon('ban'), 'Punished Users')}
+            ${item('stats', UI.icon('chart'), 'Stats')}
+            ${isOwner ? item('apikey', UI.icon('key'), 'API Key') : ''}
+        </div>`;
+        document.body.appendChild(extra);
+    },
+
+    close() {
+        SideMenu._open = false;
+        document.getElementById('side-menu-root')?.remove();
+    }
+};
+
+/* ================================================================
+   PAGE VIEWS (rendered into #server-body-container by the side menu —
+   never modals, so the topbar with server name + join code stays visible)
+================================================================ */
+const PageViews = {
+    /* ── STAFF STATUS (currently online/on-duty) ── */
+    async staff() {
+        const content = document.getElementById('page-view-content');
+        if (!content) return;
+        content.innerHTML = `<div id="staff-status-full-list" style="display:flex;flex-direction:column;gap:6px"></div>`;
+        // ServerView.renderStaff() already targets this exact element id on every
+        // background poll tick, so it stays live automatically from here on.
+        Modals._renderStaffStatusList(State.staff || [], document.getElementById('staff-status-full-list'));
+    },
+
+    /* ── PUNISHED USERS (All / Warn / Ban / Freeze) ── */
+    async punished() {
+        const content = document.getElementById('page-view-content');
+        if (!content) return;
+
+        const u = State.user;
+        const typeLabel = { ban: 'Ban', warn: 'Warn', freeze: 'Freeze' };
+        const tagClass  = { ban: 'tag-ban', warn: 'tag-warn', freeze: 'tag-freeze' };
+
+        const fetchType = async (type) => {
+            const { data } = await api('GET', `/api/punishments/list?type=${type}&userId=${u.userId}&senderId=${u.userId}`, null, true);
+            return (data.items || []).map(item => ({ ...item, _type: type }));
+        };
+
+        const renderItems = (items, showTypeTag) => {
+            const list = document.getElementById('punished-list');
+            if (!list) return;
+            if (!items.length) {
+                list.innerHTML = `<div style="color:var(--muted);font-size:0.8rem;text-align:center;padding:1.5rem">No entries</div>`;
+                return;
+            }
+            list.innerHTML = `
+            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px">${items.length} entr${items.length===1?'y':'ies'}</div>
+            ${items.map(item => {
+                const type = item._type;
+                const onlinePlayer = State.players.find(p => p.userId === item.userId || p.userId === item.targetId);
+                return `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px;cursor:pointer"
+                        onclick='Modals._punishedItemInfo("${type}", ${JSON.stringify(item)})'>
+                    <img src="${UI.avatar(item.userId || item.targetId)}" style="width:32px;height:32px;border-radius:50%">
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:0.82rem;font-weight:500;display:flex;align-items:center;gap:6px">
+                            ${item.username || item.targetUsername || 'Unknown'}
+                            ${showTypeTag ? `<span class="tag ${tagClass[type]}">${typeLabel[type]}</span>` : ''}
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--muted)">${item.reason || 'No reason'}</div>
+                        ${onlinePlayer ? `<span style="font-size:0.65rem;color:var(--green);background:var(--green-bg);border-radius:4px;padding:1px 5px">Playing</span>` : ''}
+                        <div style="font-size:0.68rem;color:var(--accent);margin-top:2px">Click for more info</div>
+                    </div>
+                    <button class="hold-btn red-hold" style="font-size:0.68rem;padding:4px 8px" onclick="event.stopPropagation()"
+                        onmousedown="event.stopPropagation();HoldBtn.start(this, 500, () => Actions.revokePunishment('${type}', ${item.userId || item.targetId}, '${item.caseId || ''}'))"
+                        onmouseup="HoldBtn.stop(this)"
+                        onmouseleave="HoldBtn.stop(this)">
+                        <div class="hold-fill"></div>
+                        <span>${type === 'ban' ? 'Unban' : type === 'freeze' ? 'Unfreeze' : 'Unwarn'}</span>
+                    </button>
+                </div>`;
+            }).join('')}`;
+        };
+
+        const renderTab = async (type) => {
+            if (type === 'all') {
+                const [bans, warns, freezes] = await Promise.all([fetchType('ban'), fetchType('warn'), fetchType('freeze')]);
+                renderItems([...bans, ...warns, ...freezes].sort((a,b) => (b.bannedAt||b.warnedAt||b.frozenAt||0) - (a.bannedAt||a.warnedAt||a.frozenAt||0)), true);
+            } else {
+                renderItems(await fetchType(type), false);
+            }
+        };
+
+        content.innerHTML = `
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="PageViews._switchPunishedTab('all',this)">All</button>
+            <button class="tab-btn" onclick="PageViews._switchPunishedTab('warn',this)">Warn</button>
+            <button class="tab-btn" onclick="PageViews._switchPunishedTab('ban',this)">Ban</button>
+            <button class="tab-btn" onclick="PageViews._switchPunishedTab('freeze',this)">Freeze</button>
+        </div>
+        <div id="punished-list"></div>`;
+
+        PageViews._punishedRenderTab = renderTab;
+        await renderTab('all');
+    },
+
+    _switchPunishedTab(type, btn) {
+        document.querySelectorAll('.tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        PageViews._punishedRenderTab?.(type);
+    },
+
+    /* ── STATS (Server Stats chart + Staff Activity table, with range filters) ── */
+    _statsTab: 'server',
+    _statsRange: 'week',
+
+    async stats() {
+        const content = document.getElementById('page-view-content');
+        if (!content) return;
+        content.innerHTML = `
+        <div class="tab-bar">
+            <button class="tab-btn ${PageViews._statsTab==='server'?'active':''}" onclick="PageViews._switchStatsTab('server',this)">Server Stats</button>
+            <button class="tab-btn ${PageViews._statsTab==='staff'?'active':''}" onclick="PageViews._switchStatsTab('staff',this)">Staff Activity</button>
+        </div>
+        <div class="range-bar">
+            <button class="range-btn ${PageViews._statsRange==='week'?'active':''}" onclick="PageViews._switchStatsRange('week',this)">Last week</button>
+            <button class="range-btn ${PageViews._statsRange==='3d'?'active':''}" onclick="PageViews._switchStatsRange('3d',this)">Last 3 days</button>
+            <button class="range-btn ${PageViews._statsRange==='24h'?'active':''}" onclick="PageViews._switchStatsRange('24h',this)">Last 24 hours</button>
+        </div>
+        <div id="stats-body"><div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:2rem">Loading</div></div>`;
+        PageViews._renderStatsBody();
+    },
+
+    _switchStatsTab(tab, btn) {
+        PageViews._statsTab = tab;
+        document.querySelectorAll('.tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        PageViews._renderStatsBody();
+    },
+
+    _switchStatsRange(range, btn) {
+        PageViews._statsRange = range;
+        document.querySelectorAll('.range-bar .range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        PageViews._renderStatsBody();
+    },
+
+    async _renderStatsBody() {
+        const body = document.getElementById('stats-body');
+        if (!body) return;
+        if (PageViews._statsTab === 'server') return PageViews._renderServerStats(body);
+        return PageViews._renderStaffActivity(body);
+    },
+
+    async _renderServerStats(body) {
+        const u = State.user;
+        const { ok, data } = await api('GET', `/api/servers/${State.serverCode}/stats?range=${PageViews._statsRange}&userId=${u.userId}&senderId=${u.userId}`, null, true);
+        if (!ok || !data.points?.length) {
+            body.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:2rem">Not enough data yet — stats build up the longer the server stays online</div>`;
+            return;
+        }
+
+        const maxVal = Math.max(...data.points.map(p => p.avgPlayers), 1);
+        const fmtLabel = (label) => data.granularity === 'hour'
+            ? new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : new Date(label + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+        body.innerHTML = `
+        <div class="stats-chart">
+            ${data.points.map(p => `
+                <div class="stats-bar-col" title="${fmtLabel(p.label)}: avg ${p.avgPlayers}, peak ${p.peakPlayers}">
+                    <div class="stats-bar" style="height:${Math.max(4, (p.avgPlayers / maxVal) * 100)}%"></div>
+                    <div class="stats-bar-label">${fmtLabel(p.label)}</div>
+                </div>`).join('')}
+        </div>
+        <div class="stats-summary">
+            <div class="stats-summary-item">
+                <div class="stats-summary-label">Busiest ${data.granularity === 'hour' ? 'hour' : 'day'}</div>
+                <div class="stats-summary-value">${data.busiest ? fmtLabel(data.busiest) : '—'}</div>
+            </div>
+            <div class="stats-summary-item">
+                <div class="stats-summary-label">Peak players (overall)</div>
+                <div class="stats-summary-value">${data.peakOverall}</div>
+            </div>
+        </div>`;
+    },
+
+    async _renderStaffActivity(body) {
+        const u = State.user;
+        const { ok, data } = await api('GET', `/api/servers/staff-activity?range=${PageViews._statsRange}&userId=${u.userId}&senderId=${u.userId}`, null, true);
+        if (!ok || !data.staff?.length) {
+            body.innerHTML = `<div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:2rem">No staff activity in this range yet</div>`;
+            return;
+        }
+
+        const statusLabel = { on_duty: 'On Duty', break: 'On Break', Online: 'Online', Offline: 'Offline' };
+        body.innerHTML = `
+        <table class="stats-table">
+            <tr><th></th><th>Staff</th><th>Status</th><th>On Duty</th><th>Break</th><th>Punishments</th></tr>
+            ${data.staff.map(s => `
+                <tr>
+                    <td><img src="${UI.avatar(s.userId)}" style="width:30px;height:30px;border-radius:50%"></td>
+                    <td>
+                        <div style="font-weight:500">${s.username}</div>
+                        <span class="tag" style="background:${s.role==='owner'?'rgba(168,85,247,0.15)':s.role==='admin'?'rgba(79,110,247,0.15)':'var(--surface2)'};color:${s.role==='owner'?'var(--purple)':s.role==='admin'?'var(--accent)':'var(--muted)'};font-size:0.62rem">${s.role}</span>
+                    </td>
+                    <td><span class="status-dot ${s.status}"></span> ${statusLabel[s.status] || s.status}</td>
+                    <td style="font-family:var(--font-mono)">${UI.formatDuration(s.onDutySeconds)}</td>
+                    <td style="font-family:var(--font-mono)">${UI.formatDuration(s.breakSeconds)}</td>
+                    <td style="text-align:center;font-weight:600">${s.punishments}</td>
+                </tr>`).join('')}
+        </table>`;
+    },
+
+    /* ── API KEY (owner only) ── */
+    async apiKey() {
+        const content = document.getElementById('page-view-content');
+        if (!content) return;
+        const u = State.user;
+        const sc = State.serverCode;
+        const { ok, data } = await api('GET', `/api/serverkeys/${sc}?userId=${u.userId}&senderId=${u.userId}`);
+        if (!ok) { content.innerHTML = `<div style="color:var(--muted);text-align:center;padding:2rem">Owner access required</div>`; return; }
+
+        content.innerHTML = `
+        <div style="background:var(--red-bg);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:10px 12px;font-size:0.8rem;color:var(--red);margin-bottom:12px">
+            Do not share this key. If compromised, regenerate it immediately
+        </div>
+        <div class="api-key-display">
+            <span class="api-key-val" id="key-val">${data.maskedKey}</span>
+            <button class="key-action-btn" id="eye-btn" onclick="Modals.toggleKeyVisibility('${data.fullKey}', '${data.maskedKey}')">${UI.icon('eye')}</button>
+            <button class="key-action-btn" onclick="Modals.copyKey('${data.fullKey}')">${UI.icon('copy')}</button>
+        </div>
+        ${data.cooldownUntil ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:8px">Regeneration cooldown: ${Math.ceil((data.cooldownUntil - Date.now())/60000)}m remaining</div>` : ''}
+        <button class="hold-btn red-hold" style="width:100%;margin-top:12px;max-width:360px"
+            onmousedown="HoldBtn.start(this, 2000, Actions.regenerateApiKey)"
+            onmouseup="HoldBtn.stop(this)"
+            onmouseleave="HoldBtn.stop(this)"
+            ${data.cooldownUntil && data.cooldownUntil > Date.now() ? 'disabled style="opacity:0.4;pointer-events:none"' : ''}>
+            <div class="hold-fill"></div>
+            <span>Hold 2s to regenerate</span>
+        </button>`;
+    }
+};
+
 const Modals = {
     show(html, cls = '') {
         const root = document.getElementById('modal-root');
@@ -1155,6 +1644,9 @@ const Modals = {
 
         const warns    = player.warns || [];
         const isFrozen = player.isFrozen;
+        const health    = player.health ?? player.Health ?? null;
+        const maxHealth = player.maxHealth ?? player.MaxHealth ?? 100;
+        const healthPct = health !== null ? Math.max(0, Math.min(100, (health / maxHealth) * 100)) : null;
 
         Modals.show(`
         <div class="modal-header">
@@ -1170,16 +1662,14 @@ const Modals = {
             <div class="modal-stat"><div class="modal-stat-label">Team</div><div class="modal-stat-value">${player.team}</div></div>
             <div class="modal-stat"><div class="modal-stat-label">Time in server</div><div class="modal-stat-value">${UI.formatDuration(player.timeInGame)}</div></div>
             <div class="modal-stat"><div class="modal-stat-label">In vehicle</div><div class="modal-stat-value">${player.inVehicle ? 'Yes' : 'No'}</div></div>
-            <div class="modal-stat"><div class="modal-stat-label">Status</div><div class="modal-stat-value">${isFrozen ? '❄ Frozen' : 'Active'}</div></div>
+            <div class="modal-stat"><div class="modal-stat-label">Frozen</div><div class="modal-stat-value">${isFrozen ? '❄ Yes' : 'No'}</div></div>
         </div>
 
-        <!-- Mini map -->
-        <div class="mini-map-player" id="player-mini-map">
-            <img src="/img/TopdownMap.png" style="width:100%;height:100%;object-fit:cover;opacity:0.6">
-            ${player.pos ? `<img class="player-dot" id="mini-dot"
-                src="${UI.avatar(player.userId)}"
-                style="left:${MapView.worldToMap(player.pos.x, player.pos.z).left}%;top:${MapView.worldToMap(player.pos.x, player.pos.z).top}%;border-color:${player.teamColor||'#fff'}">` : ''}
-        </div>
+        ${healthPct !== null ? `
+        <div class="health-bar-wrap">
+            <div class="health-bar-label"><span>Health</span><span>${health} / ${maxHealth}</span></div>
+            <div class="health-bar-track"><div class="health-bar-fill" style="width:${healthPct}%"></div></div>
+        </div>` : ''}
 
         <div class="modal-actions" style="margin-top:10px">
             <button class="modal-btn" onclick="Actions.bring(${player.userId}, '${player.name}')">
@@ -1193,7 +1683,10 @@ const Modals = {
             <button class="modal-btn ${isFrozen ? 'green' : 'amber'}" onclick="Actions.freeze(${player.userId}, '${player.name}')">
                 ${isFrozen ? 'Unfreeze' : 'Freeze'}
             </button>
-            <button class="modal-btn red" onclick="Actions.kick(${player.userId}, '${player.name}')">Kick</button>
+            <button class="modal-btn amber" onclick="Modals.warnPlayer(${player.userId}, '${player.name}')">
+                ${UI.icon('warn')} Warn
+            </button>
+            <button class="modal-btn red" onclick="Modals.kickPlayer(${player.userId}, '${player.name}')">Kick</button>
             ${player.hasInventory ? `<button class="modal-btn" onclick="Modals.inventory(${player.userId})">
                 Inventory
             </button>` : ''}
@@ -1204,6 +1697,14 @@ const Modals = {
             <button class="modal-btn full red" onclick="Modals.banPlayer(${player.userId}, '${player.name}')">
                 ${UI.icon('ban')} Ban
             </button>
+        </div>
+
+        <!-- Mini map — kept at the very end of the frame -->
+        <div class="mini-map-player" id="player-mini-map">
+            <img src="/img/TopdownMap.png" style="width:100%;height:100%;object-fit:contain;opacity:0.7">
+            ${player.pos ? `<img class="player-dot" id="mini-dot"
+                src="${UI.avatar(player.userId)}"
+                style="left:${MapView.worldToMap(player.pos.x, player.pos.z).left}%;top:${MapView.worldToMap(player.pos.x, player.pos.z).top}%;border-color:${player.teamColor||'#fff'}">` : ''}
         </div>`, 'wide');
 
         // Live update mini dot
@@ -1215,6 +1716,40 @@ const Modals = {
             dot.style.left = left + '%';
             dot.style.top  = top + '%';
         }, 2000);
+    },
+
+    /* ── WARN PLAYER (reason prompt) ── */
+    warnPlayer(userId, username) {
+        Modals.show(`
+        <div class="modal-header">
+            <span class="modal-title">${UI.icon('warn')} Warn ${username}</span>
+            <button class="modal-close" onclick="Modals.close()">${UI.icon('close')}</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Reason</label>
+            <input class="form-input" id="warn-reason" placeholder="Reason for warning">
+        </div>
+        <button class="modal-btn amber full" onclick="Actions.confirmWarn(${userId}, '${username}')">Issue Warning</button>`);
+    },
+
+    /* ── KICK PLAYER (reason prompt + short hold confirm) ── */
+    kickPlayer(userId, username) {
+        Modals.show(`
+        <div class="modal-header">
+            <span class="modal-title">Kick ${username}</span>
+            <button class="modal-close" onclick="Modals.close()">${UI.icon('close')}</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Reason (optional)</label>
+            <input class="form-input" id="kick-reason" placeholder="Reason for kick">
+        </div>
+        <button class="hold-btn red-hold full" style="width:100%;margin-top:8px"
+            onmousedown="HoldBtn.start(this, 200, () => Actions.confirmKick(${userId}, '${username}'))"
+            onmouseup="HoldBtn.stop(this)"
+            onmouseleave="HoldBtn.stop(this)">
+            <div class="hold-fill"></div>
+            <span>Hold to confirm kick</span>
+        </button>`);
     },
 
     /* ── BAN PLAYER ── */
@@ -1330,8 +1865,8 @@ const Modals = {
 
     /* ── SERVER MODAL (shutdown + schedule) ── */
     serverModal() {
-        const uptime = State.serverData?.startTime
-            ? UI.formatDuration(Math.floor((Date.now() - State.serverData.startTime) / 1000))
+        const uptime = (State.serverData?.uptime !== undefined && State.serverData?.uptime !== null)
+            ? UI.formatDuration(State.serverData.uptime)
             : 'Unknown';
 
         Modals.show(`
@@ -1440,37 +1975,97 @@ const Modals = {
         <button class="modal-btn green full" onclick="Actions.sendMessageTo('${username}')">Send</button>`);
     },
 
+    /* ── STAFF STATUS (full view, behind side menu) ── */
+    staffStatusFull() {
+        Modals.show(`
+        <div class="modal-header">
+            <span class="modal-title">${UI.icon('users')} Staff Status</span>
+            <button class="modal-close" onclick="Modals.close()">${UI.icon('close')}</button>
+        </div>
+        <div id="staff-status-full-list" style="display:flex;flex-direction:column;gap:6px;max-height:420px;overflow-y:auto"></div>`, 'wide');
+
+        Modals._renderStaffStatusList(State.staff, document.getElementById('staff-status-full-list'));
+    },
+
+    _renderStaffStatusList(staff, el) {
+        if (!el) return;
+        if (!staff.length) {
+            el.innerHTML = `<div style="color:var(--muted);font-size:0.78rem;text-align:center;padding:1rem">No staff online</div>`;
+            return;
+        }
+        const statusLabel = { on_duty: 'On Duty', break: 'On Break', Online: 'Online', Offline: 'Offline' };
+        const order = { on_duty: 0, break: 1, Online: 2, Offline: 3 };
+        const sorted = [...staff].sort((a, b) => (order[a.status] ?? 4) - (order[b.status] ?? 4));
+        el.innerHTML = sorted.map(m => {
+            const since = m.updatedAt ? UI.timeAgo(new Date(m.updatedAt).getTime()) : '';
+            return `<div class="staff-item" style="padding:10px">
+                <img class="staff-avatar" src="${UI.avatar(m.userId)}" alt="" style="width:36px;height:36px">
+                <div style="flex:1;min-width:0">
+                    <div class="staff-name" style="font-size:0.85rem">${m.username}</div>
+                    <div class="staff-duration">${since}</div>
+                </div>
+                <span class="tag" style="background:${m.role === 'owner' ? 'rgba(168,85,247,0.15)' : m.role === 'admin' ? 'rgba(79,110,247,0.15)' : 'var(--surface2)'};color:${m.role === 'owner' ? 'var(--purple)' : m.role === 'admin' ? 'var(--accent)' : 'var(--muted)'}">${m.role || 'mod'}</span>
+                <div style="display:flex;align-items:center;gap:5px">
+                    <span class="status-dot ${m.status}"></span>
+                    <span class="staff-status">${statusLabel[m.status] || m.status}</span>
+                </div>
+            </div>`;
+        }).join('');
+    },
+
     /* ── PUNISHED USERS ── */
     async punishedUsers() {
         const u = State.user;
-        let activeTab = 'ban';
-        const renderTab = async (type) => {
-            activeTab = type;
+        const typeLabel = { ban: 'Ban', warn: 'Warn', freeze: 'Freeze' };
+        const tagClass  = { ban: 'tag-ban', warn: 'tag-warn', freeze: 'tag-freeze' };
+
+        const fetchType = async (type) => {
             const { data } = await api('GET', `/api/punishments/list?type=${type}&userId=${u.userId}&senderId=${u.userId}`, null, true);
-            const items = data.items || [];
+            return (data.items || []).map(item => ({ ...item, _type: type }));
+        };
+
+        const renderItems = (items, showTypeTag) => {
             const container = document.getElementById('punished-list');
             if (!container) return;
+            if (!items.length) {
+                container.innerHTML = `<div style="color:var(--muted);font-size:0.8rem;text-align:center;padding:1.5rem">No entries</div>`;
+                return;
+            }
             container.innerHTML = `
-            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px">${items.length} ${type === 'ban' ? 'Banned' : type === 'warn' ? 'Warned' : 'Frozen'} users</div>
+            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px">${items.length} entr${items.length===1?'y':'ies'}</div>
             ${items.map(item => {
+                const type = item._type;
                 const onlinePlayer = State.players.find(p => p.userId === item.userId || p.userId === item.targetId);
-                return `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px">
+                return `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px;cursor:pointer"
+                        onclick="Modals._punishedItemInfo('${type}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
                     <img src="${UI.avatar(item.userId || item.targetId)}" style="width:32px;height:32px;border-radius:50%">
                     <div style="flex:1;min-width:0">
-                        <div style="font-size:0.82rem;font-weight:500">${item.username || item.targetUsername || 'Unknown'}</div>
+                        <div style="font-size:0.82rem;font-weight:500;display:flex;align-items:center;gap:6px">
+                            ${item.username || item.targetUsername || 'Unknown'}
+                            ${showTypeTag ? `<span class="tag ${tagClass[type]}">${typeLabel[type]}</span>` : ''}
+                        </div>
                         <div style="font-size:0.7rem;color:var(--muted)">${item.reason || 'No reason'}</div>
                         ${onlinePlayer ? `<span style="font-size:0.65rem;color:var(--green);background:var(--green-bg);border-radius:4px;padding:1px 5px">Playing</span>` : ''}
+                        <div style="font-size:0.68rem;color:var(--accent);margin-top:2px">Click for more info</div>
                     </div>
-                    ${type !== 'kick' ? `
-                    <button class="hold-btn red-hold" style="font-size:0.68rem;padding:4px 8px"
-                        onmousedown="HoldBtn.start(this, 500, () => Actions.revokePunishment('${type}', ${item.userId || item.targetId}, '${item.caseId || ''}'))"
+                    <button class="hold-btn red-hold" style="font-size:0.68rem;padding:4px 8px" onclick="event.stopPropagation()"
+                        onmousedown="event.stopPropagation();HoldBtn.start(this, 500, () => Actions.revokePunishment('${type}', ${item.userId || item.targetId}, '${item.caseId || ''}'))"
                         onmouseup="HoldBtn.stop(this)"
                         onmouseleave="HoldBtn.stop(this)">
                         <div class="hold-fill"></div>
                         <span>${type === 'ban' ? 'Unban' : type === 'freeze' ? 'Unfreeze' : 'Unwarn'}</span>
-                    </button>` : ''}
+                    </button>
                 </div>`;
             }).join('')}`;
+        };
+
+        const renderTab = async (type) => {
+            if (type === 'all') {
+                const [bans, warns, freezes] = await Promise.all([fetchType('ban'), fetchType('warn'), fetchType('freeze')]);
+                renderItems([...bans, ...warns, ...freezes].sort((a,b) => (b.bannedAt||b.warnedAt||b.frozenAt||0) - (a.bannedAt||a.warnedAt||a.frozenAt||0)), true);
+            } else {
+                renderItems(await fetchType(type), false);
+            }
         };
 
         Modals.show(`
@@ -1479,14 +2074,28 @@ const Modals = {
             <button class="modal-close" onclick="Modals.close()">${UI.icon('close')}</button>
         </div>
         <div class="tab-bar">
-            <button class="tab-btn active" id="tab-ban"   onclick="Modals._switchPunishedTab('ban',this)">Ban</button>
+            <button class="tab-btn active" id="tab-all"   onclick="Modals._switchPunishedTab('all',this)">All</button>
             <button class="tab-btn"        id="tab-warn"  onclick="Modals._switchPunishedTab('warn',this)">Warn</button>
+            <button class="tab-btn"        id="tab-ban"   onclick="Modals._switchPunishedTab('ban',this)">Ban</button>
             <button class="tab-btn"        id="tab-freeze"onclick="Modals._switchPunishedTab('freeze',this)">Freeze</button>
         </div>
         <div id="punished-list" style="max-height:360px;overflow-y:auto"></div>`, 'wide');
 
-        await renderTab('ban');
+        await renderTab('all');
         Modals._punishedRenderTab = renderTab;
+    },
+
+    _punishedItemInfo(type, item) {
+        const typeLabel = { ban: 'Ban', warn: 'Warn', freeze: 'Freeze' };
+        Modals.show(`
+        <div class="modal-header">
+            <span class="modal-title">${typeLabel[type]} — ${item.username || item.targetUsername || 'Unknown'}</span>
+            <button class="modal-close" onclick="Modals.close()">${UI.icon('close')}</button>
+        </div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:6px"><strong>Reason:</strong> ${item.reason || 'No reason provided'}</div>
+        ${item.responsibleUsername ? `<div style="font-size:0.78rem;color:var(--muted)">By: ${item.responsibleUsername}</div>` : ''}
+        ${item.caseId ? `<div style="font-size:0.73rem;color:var(--muted);font-family:var(--font-mono);margin-top:4px">Case ID: ${item.caseId}</div>` : ''}
+        ${item.duration ? `<div style="font-size:0.78rem;color:var(--muted);margin-top:4px">Duration: ${item.duration === -1 ? 'Permanent' : UI.formatDuration(item.duration)}</div>` : ''}`);
     },
 
     _switchPunishedTab(type, btn) {
@@ -1583,8 +2192,28 @@ const Actions = {
 
     bring(userId, name)  { Actions.command('bring', name, userId); },
     to(userId, name)     { Actions.command('to', name, userId); },
-    kick(userId, name)   { Actions.command('kick', name, userId); },
     freeze(userId, name) { Actions.command('freeze', name, userId); },
+
+    async confirmKick(userId, username) {
+        const reason = document.getElementById('kick-reason')?.value.trim() || 'No reason provided';
+        const u = State.user;
+        const { ok } = await api('POST', `/api/punishments/kick`, {
+            serverCode: State.serverCode, target: username, targetId: userId,
+            reason, userId: u.userId, senderId: u.userId
+        });
+        if (ok) { toast(`${username} kicked`, 'success'); Modals.close(); }
+    },
+
+    async confirmWarn(userId, username) {
+        const reason = document.getElementById('warn-reason')?.value.trim() || 'No reason provided';
+        const u = State.user;
+        const { ok, data } = await api('POST', `/api/punishments/warn`, {
+            serverCode: State.serverCode, toWho: username, toWhoId: userId,
+            responsibleId: u.userId, responsibleUsername: u.username,
+            reason, userId: u.userId, senderId: u.userId
+        });
+        if (ok) { toast(`Warning issued to ${username} (Case ${data.caseId})`, 'success'); Modals.close(); }
+    },
 
     async confirmBan(userId, username) {
         const reason   = document.getElementById('ban-reason')?.value || 'No reason provided';
@@ -1690,7 +2319,7 @@ const Actions = {
         }
 
         const { ok } = await api('POST', endpoint, body);
-        if (ok) { toast('Punishment revoked', 'success'); Modals.punishedUsers(); }
+        if (ok) { toast('Punishment revoked', 'success'); PageViews.punished(); }
     },
 
     async regenerateApiKey() {
@@ -1750,6 +2379,9 @@ const HoldBtn = {
 
     // Auth guard
     if (!requireAuth()) return;
+
+    // Load shared config (map bounds etc.) once, up front
+    App.loadConfig();
 
     // Route based on URL
     const path = window.location.pathname;

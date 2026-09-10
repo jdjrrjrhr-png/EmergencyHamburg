@@ -16,18 +16,13 @@
     "TruckCompany"
   ],
   "heartbeatInterval": 2,
-  "mapStreamInterval": 1.3,
+  "mapStreamInterval": 5,
   "mapMinPlayers": 10,
   "maxAuditLogs": 25,
   "maxChatMessages": 30,
   "warnCaseIdLength": 6,
-  "emptyServerGraceSeconds": 5,
-  "dutyActionCooldownSeconds": 3,
-  "serverCodeSegments": 5,
-  "serverCodeSegmentLength": 4,
+  "serverCodeLength": "4x4",
   "serverCodeRegenerateCooldown": 900,
   "scheduledShutdownMaxDays": 14,
-  "refreshCooldownSeconds": 10,
-  "dashboardWatchTimeoutMs": 8000,
-  "positionMinStuds": 7
+  "refreshCooldownSeconds": 10
 }
