@@ -932,7 +932,7 @@ const AuditLog = {
             shots_fired:   { style:'background:rgba(168,85,247,0.1)', svg: UI.icon('shield') },
             player_down:   { style:'background:rgba(239,68,68,0.08)', svg: UI.icon('person') },
             team_changed:  { style:'background:rgba(56,189,248,0.1)', svg: UI.icon('users') },
-            phone_call:    { style:'background:rgba(79,110,247,0.1)', svg: UI.icon('send') },
+            phone_call:    { style:'background:rgba(195,245,61,0.1)', svg: UI.icon('send') },
             set_wanted:    { style:'background:rgba(239,68,68,0.12)', svg: UI.icon('warn') },
         };
         return map[type] || { style:'background:var(--surface2)', svg: '' };
@@ -1585,7 +1585,7 @@ const PageViews = {
                     <td><img src="${UI.avatar(s.userId)}" style="width:30px;height:30px;border-radius:50%"></td>
                     <td>
                         <div style="font-weight:500">${s.username}</div>
-                        <span class="tag" style="background:${s.role==='owner'?'rgba(168,85,247,0.15)':s.role==='admin'?'rgba(79,110,247,0.15)':'var(--surface2)'};color:${s.role==='owner'?'var(--purple)':s.role==='admin'?'var(--accent)':'var(--muted)'};font-size:0.62rem">${s.role}</span>
+                        <span class="tag" style="background:${s.role==='owner'?'rgba(168,85,247,0.15)':s.role==='admin'?'rgba(195,245,61,0.15)':'var(--surface2)'};color:${s.role==='owner'?'var(--purple)':s.role==='admin'?'var(--accent)':'var(--muted)'};font-size:0.62rem">${s.role}</span>
                     </td>
                     <td><span class="status-dot ${s.status}"></span> ${statusLabel[s.status] || s.status}</td>
                     <td style="font-family:var(--font-mono)">${UI.formatDuration(s.onDutySeconds)}</td>
@@ -2015,7 +2015,7 @@ const Modals = {
                     <div class="staff-name" style="font-size:0.85rem">${m.username}</div>
                     <div class="staff-duration">${since}</div>
                 </div>
-                <span class="tag" style="background:${m.role === 'owner' ? 'rgba(168,85,247,0.15)' : m.role === 'admin' ? 'rgba(79,110,247,0.15)' : 'var(--surface2)'};color:${m.role === 'owner' ? 'var(--purple)' : m.role === 'admin' ? 'var(--accent)' : 'var(--muted)'}">${m.role || 'mod'}</span>
+                <span class="tag" style="background:${m.role === 'owner' ? 'rgba(168,85,247,0.15)' : m.role === 'admin' ? 'rgba(195,245,61,0.15)' : 'var(--surface2)'};color:${m.role === 'owner' ? 'var(--purple)' : m.role === 'admin' ? 'var(--accent)' : 'var(--muted)'}">${m.role || 'mod'}</span>
                 <div style="display:flex;align-items:center;gap:5px">
                     <span class="status-dot ${m.status}"></span>
                     <span class="staff-status">${statusLabel[m.status] || m.status}</span>
