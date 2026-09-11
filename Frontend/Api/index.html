@@ -3,633 +3,298 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Emergency Hamburg API</title>
+<title>Emergency Hamburg — Shield System</title>
+<meta name="description" content="Operations dashboard, live map, and moderation tools for Emergency Hamburg servers.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-    --bg:       #08090f;
-    --surface:  #0f1120;
-    --surface2: #161829;
-    --border:   rgba(255,255,255,0.07);
-    --text:     #e2e6f0;
-    --muted:    #6b7280;
-    --accent:   #4f6ef7;
-    --accent2:  #38bdf8;
-    --danger:   #ef4444;
-    --success:  #22c55e;
-    --warn:     #f59e0b;
-    --radius:   12px;
-    --font:     'Inter', system-ui, sans-serif;
-    --font-h:   'Space Grotesk', sans-serif;
-}
-[data-theme="light"] {
-    --bg:       #f5f6fa;
-    --surface:  #ffffff;
-    --surface2: #eef0f8;
-    --border:   rgba(0,0,0,0.08);
-    --text:     #111827;
-    --muted:    #6b7280;
+    --bg:         #05060b;
+    --surface:    #0e1020;
+    --surface2:   #161a2f;
+    --surface3:   #1b1e35;
+    --border:     rgba(255,255,255,0.08);
+    --border2:    rgba(255,255,255,0.04);
+    --text:       #eef0fa;
+    --text2:      #9ba1c2;
+    --muted:      #5c6284;
+    --accent:     #5b6ef5;
+    --accent2:    #22d3ee;
+    --green:      #22c55e;
+    --amber:      #f97316;
+    --red:        #ef4444;
+    --purple:     #a855f7;
+    --pink:       #ec4899;
+    --radius:     10px;
+    --radius-lg:  16px;
+    --grad-blue:   linear-gradient(135deg, #5b6ef5, #22d3ee);
+    --grad-violet: linear-gradient(135deg, #a855f7, #ec4899);
+    --grad-warm:   linear-gradient(135deg, #f97316, #ec4899);
+    --font:      'Inter', system-ui, sans-serif;
+    --font-h:    'Space Grotesk', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
     font-family: var(--font);
-    background: var(--bg);
     color: var(--text);
+    background:
+        radial-gradient(760px 460px at 18% -8%, rgba(91,110,245,0.20), transparent 60%),
+        radial-gradient(620px 380px at 100% 0%, rgba(236,72,153,0.12), transparent 55%),
+        radial-gradient(900px 520px at 50% 115%, rgba(34,211,238,0.08), transparent 60%),
+        var(--bg);
     min-height: 100vh;
     overflow-x: hidden;
 }
+a { color: inherit; text-decoration: none; }
+button { font-family: var(--font); cursor: pointer; }
 
 /* ─── NAV ─── */
-nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 2rem;
+#topnav {
+    position: sticky; top: 0; z-index: 50;
     height: 60px;
-    background: rgba(8,9,15,0.85);
-    backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 clamp(1.25rem, 4vw, 3rem);
+    background: rgba(5,6,11,0.75);
+    backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--border);
 }
 .nav-brand {
     font-family: var(--font-h);
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: -0.01em;
-    display: flex; align-items: center; gap: 8px;
+    font-size: 0.92rem; font-weight: 600;
+    display: flex; align-items: center; gap: 9px;
 }
-.nav-brand .dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 2s infinite;
+.nav-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--grad-blue);
+    box-shadow: 0 0 10px rgba(91,110,245,0.55);
 }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-.nav-right { display: flex; align-items: center; gap: 12px; }
-
-/* User avatar pill */
-#user-pill {
-    display: none; align-items: center; gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 99px;
-    padding: 4px 12px 4px 4px;
-    cursor: pointer;
-    transition: background 0.2s;
-    position: relative;
+.nav-links { display: flex; align-items: center; gap: 6px; }
+.nav-link {
+    padding: 7px 14px; border-radius: 8px;
+    font-size: 0.82rem; font-weight: 500; color: var(--text2);
+    border: 1px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
-#user-pill:hover { background: var(--surface2); }
-#user-pill img {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    object-fit: cover;
+.nav-link:hover { color: var(--text); background: var(--surface2); }
+.nav-link.primary {
+    color: #fff; background: var(--grad-blue);
+    box-shadow: 0 6px 18px rgba(91,110,245,0.3);
 }
-#user-pill-name {
-    font-size: 0.8rem; font-weight: 500;
-    color: var(--text);
-}
-
-/* User dropdown */
-#user-dropdown {
-    display: none;
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px;
-    min-width: 200px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-    z-index: 200;
-}
-#user-dropdown.open { display: block; }
-.dropdown-header {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 8px;
-}
-.dropdown-header img { width: 40px; height: 40px; border-radius: 50%; }
-.dropdown-header-info { flex: 1; }
-.dropdown-header-info .name { font-weight: 600; font-size: 0.85rem; }
-.dropdown-header-info .role {
-    font-size: 0.72rem; color: var(--muted);
-    text-transform: capitalize;
-}
-.dropdown-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 8px;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    color: var(--text);
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.dropdown-item:hover { background: var(--surface2); }
-.dropdown-item.danger { color: var(--danger); }
-
-.btn-sign-in {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 7px 16px;
-    font-size: 0.82rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: opacity 0.2s;
-}
-.btn-sign-in:hover { opacity: 0.85; }
+.nav-link.primary:hover { filter: brightness(1.08); }
 
 /* ─── HERO ─── */
 .hero {
-    min-height: 100vh;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: clamp(4rem, 10vw, 7rem) 1.5rem 3.5rem;
     text-align: center;
-    padding: 80px 2rem 4rem;
-    position: relative;
-    overflow: hidden;
-}
-.hero-glow {
-    position: absolute;
-    top: 20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 600px; height: 400px;
-    background: radial-gradient(ellipse at center, rgba(79,110,247,0.15) 0%, transparent 70%);
-    pointer-events: none;
 }
 .hero-eyebrow {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(79,110,247,0.12);
-    border: 1px solid rgba(79,110,247,0.25);
-    color: var(--accent2);
-    font-size: 0.75rem; font-weight: 500;
-    padding: 4px 12px;
-    border-radius: 99px;
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 0.78rem; color: var(--text2);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 99px; padding: 5px 12px 5px 8px;
     margin-bottom: 1.5rem;
-    letter-spacing: 0.05em;
 }
-.hero-title {
+.hero-eyebrow .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.hero h1 {
     font-family: var(--font-h);
-    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-size: clamp(2.1rem, 5.5vw, 3.4rem);
     font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-    color: var(--text);
-    margin-bottom: 1.25rem;
-    max-width: 800px;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.1rem;
 }
-.hero-title .highlight {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+.hero p {
+    color: var(--text2);
+    font-size: 1.02rem;
+    line-height: 1.7;
+    max-width: 540px;
+    margin: 0 auto 2.25rem;
 }
-.hero-sub {
-    font-size: 1.05rem;
-    color: var(--muted);
-    max-width: 520px;
-    line-height: 1.6;
-    margin-bottom: 3rem;
-}
-
-/* ─── CTA GRID ─── */
-.cta-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    max-width: 680px;
-    width: 100%;
-    margin-bottom: 3rem;
-}
-.cta-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-    cursor: pointer;
-    text-decoration: none;
-    color: var(--text);
-    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
-    text-align: left;
-    position: relative;
-    overflow: hidden;
-}
-.cta-card::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(79,110,247,0.05), transparent);
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-.cta-card:hover { transform: translateY(-2px); border-color: rgba(79,110,247,0.35); box-shadow: 0 8px 32px rgba(79,110,247,0.1); }
-.cta-card:hover::before { opacity: 1; }
-.cta-card.requires-login .lock-badge {
-    position: absolute; top: 10px; right: 10px;
-    background: rgba(79,110,247,0.12);
-    color: var(--accent);
-    border-radius: 6px;
-    padding: 2px 7px;
-    font-size: 0.68rem; font-weight: 500;
-}
-.cta-icon {
-    width: 38px; height: 38px;
-    border-radius: 10px;
+.hero-actions {
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.1rem;
+    gap: 12px; flex-wrap: wrap;
 }
-.cta-icon.blue  { background: rgba(79,110,247,0.12); color: var(--accent); }
-.cta-icon.cyan  { background: rgba(56,189,248,0.12); color: var(--accent2); }
-.cta-icon.green { background: rgba(34,197,94,0.12);  color: var(--success); }
-.cta-card-title { font-weight: 600; font-size: 0.95rem; }
-.cta-card-desc  { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
-
-/* ─── STATS BAR ─── */
-.stats-bar {
-    display: flex; gap: 2rem;
-    padding: 1rem 2rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    font-size: 0.82rem;
-    color: var(--muted);
+.btn {
+    padding: 11px 22px;
+    border-radius: 10px;
+    font-size: 0.88rem; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid transparent;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
 }
-.stat-item { display: flex; align-items: center; gap: 6px; }
-.stat-value { color: var(--text); font-weight: 600; }
+.btn:active { transform: scale(0.98); }
+.btn-primary {
+    color: #fff; background: var(--grad-blue);
+    box-shadow: 0 10px 30px rgba(91,110,245,0.35);
+}
+.btn-primary:hover { box-shadow: 0 12px 36px rgba(91,110,245,0.45); transform: translateY(-1px); }
+.btn-ghost {
+    color: var(--text); background: var(--surface);
+    border-color: var(--border);
+}
+.btn-ghost:hover { background: var(--surface2); border-color: rgba(91,110,245,0.3); }
 
-/* ─── SECTIONS ─── */
-.section {
-    max-width: 960px;
+/* ─── FEATURES ─── */
+.features {
+    max-width: 1040px;
     margin: 0 auto;
-    padding: 5rem 2rem;
-}
-.section-title {
-    font-family: var(--font-h);
-    font-size: 1.6rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    color: var(--text);
-}
-.section-desc { color: var(--muted); line-height: 1.7; margin-bottom: 2.5rem; }
-
-/* Feature grid */
-.feature-grid {
+    padding: 1rem 1.5rem 5rem;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
 }
 .feature-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     padding: 1.5rem;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
 }
-.feature-card-head {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 0.75rem;
-}
-.feat-icon {
-    width: 32px; height: 32px;
-    border-radius: 8px;
+.feature-card:hover { transform: translateY(-3px); box-shadow: var(--card-glow, 0 14px 34px rgba(0,0,0,0.35)); }
+.feature-card:nth-child(1):hover { --card-glow: 0 14px 34px rgba(91,110,245,0.18); }
+.feature-card:nth-child(2):hover { --card-glow: 0 14px 34px rgba(168,85,247,0.18); }
+.feature-card:nth-child(3):hover { --card-glow: 0 14px 34px rgba(249,115,22,0.18); }
+.feature-icon {
+    width: 40px; height: 40px; border-radius: 11px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.9rem;
+    color: #fff; margin-bottom: 1rem;
 }
-.feature-card h3 { font-size: 0.9rem; font-weight: 600; }
-.feature-card p  { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+.feature-icon.blue   { background: var(--grad-blue);   box-shadow: 0 6px 18px rgba(91,110,245,0.3); }
+.feature-icon.violet { background: var(--grad-violet); box-shadow: 0 6px 18px rgba(168,85,247,0.3); }
+.feature-icon.warm   { background: var(--grad-warm);    box-shadow: 0 6px 18px rgba(249,115,22,0.3); }
+.feature-card h3 {
+    font-family: var(--font-h);
+    font-size: 0.98rem; font-weight: 600;
+    margin-bottom: 0.45rem;
+}
+.feature-card p { color: var(--muted); font-size: 0.84rem; line-height: 1.65; }
+
+/* ─── STRIP ─── */
+.strip {
+    max-width: 1040px;
+    margin: 0 auto 5rem;
+    padding: 0 1.5rem;
+}
+.strip-inner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1.5rem; flex-wrap: wrap;
+}
+.strip-text h4 { font-family: var(--font-h); font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+.strip-text p { color: var(--muted); font-size: 0.83rem; }
+.strip-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.badge {
+    font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500;
+    padding: 5px 10px; border-radius: 7px;
+    color: var(--accent2); background: rgba(34,211,238,0.1);
+    border: 1px solid rgba(34,211,238,0.2);
+}
 
 /* ─── FOOTER ─── */
 footer {
     border-top: 1px solid var(--border);
-    padding: 2rem;
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--muted);
+    padding: 1.75rem clamp(1.25rem, 4vw, 3rem);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+    color: var(--muted); font-size: 0.78rem;
 }
+footer a { color: var(--text2); }
+footer a:hover { color: var(--accent2); }
+.footer-links { display: flex; gap: 18px; }
 
-/* ─── TOAST ─── */
-#toast-container {
-    position: fixed; bottom: 24px; right: 24px; z-index: 999;
-    display: flex; flex-direction: column; gap: 8px;
+@media (max-width: 760px) {
+    .nav-links .nav-link:not(.primary) { display: none; }
+    .features { grid-template-columns: 1fr; }
 }
-.toast {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 0.83rem;
-    color: var(--text);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    animation: slideUp 0.25s ease;
-    max-width: 300px;
-}
-.toast.error   { border-left: 3px solid var(--danger); }
-.toast.success { border-left: 3px solid var(--success); }
-@keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-/* ─── TRANSITIONS ─── */
-.fade-in { animation: fadeIn 0.5s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 </head>
 <body>
 
-<!-- ─── NAV ─── -->
-<nav>
+<nav id="topnav">
     <div class="nav-brand">
-        <span class="dot"></span>
-        Emergency Hamburg API
+        <span class="nav-dot"></span>
+        Emergency Hamburg
     </div>
-    <div class="nav-right">
-        <div id="user-pill" onclick="toggleUserDropdown()">
-            <img id="user-pill-avatar" src="" alt="avatar">
-            <span id="user-pill-name">Loading</span>
-            <div id="user-dropdown">
-                <div class="dropdown-header">
-                    <img id="dd-avatar" src="" alt="">
-                    <div class="dropdown-header-info">
-                        <div class="name" id="dd-name"></div>
-                        <div class="role" id="dd-role"></div>
-                    </div>
-                </div>
-                <div class="dropdown-item" onclick="navigateTo('/Api/Dashboard')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                    Dashboard
-                </div>
-                <div class="dropdown-item" onclick="navigateTo('/Api/Document')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    Documentation
-                </div>
-                <div class="dropdown-item danger" onclick="signOut()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    Sign out
-                </div>
-            </div>
-        </div>
-        <button class="btn-sign-in" id="btn-sign-in" onclick="startLogin()">Sign in with Roblox</button>
+    <div class="nav-links">
+        <a class="nav-link" href="/Api/Document">Documentation</a>
+        <a class="nav-link primary" href="/Api/Dashboard">Open Dashboard</a>
     </div>
 </nav>
 
-<!-- ─── HERO ─── -->
-<section class="hero fade-in">
-    <div class="hero-glow"></div>
-    <div class="hero-eyebrow">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Live API
-    </div>
-    <h1 class="hero-title">Emergency Hamburg <span class="highlight">API</span></h1>
-    <p class="hero-sub">A real-time moderation and management platform for your Emergency Hamburg Roblox experience — from live player oversight to full audit logging.</p>
-
-    <div class="cta-grid">
-        <a class="cta-card" href="/Api/Document" onclick="navigate('/Api/Document',event)">
-            <div class="cta-icon blue">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            </div>
-            <div class="cta-card-title">Documentation</div>
-            <div class="cta-card-desc">Full API reference with code examples, endpoint specs, and module guide.</div>
+<section class="hero">
+    <div class="hero-eyebrow"><span class="live-dot"></span> Shield System — live operations</div>
+    <h1>Run your Emergency Hamburg servers from one screen</h1>
+    <p>The Shield dashboard brings server status, staff on duty, the live player map, and every punishment into a single view — with a documented API for bots and in-game tooling.</p>
+    <div class="hero-actions">
+        <a class="btn btn-primary" href="/Api/Dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            Open Dashboard
         </a>
-
-        <div class="cta-card requires-login" onclick="requireLoginThen('/Api/Dashboard')">
-            <span class="lock-badge">Login required</span>
-            <div class="cta-icon cyan">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            </div>
-            <div class="cta-card-title">Dashboard</div>
-            <div class="cta-card-desc">Moderate live servers, manage punishments, view audit logs in real time.</div>
-        </div>
-    </div>
-
-    <div class="stats-bar">
-        <div class="stat-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-            Live player tracking
-        </div>
-        <div class="stat-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Full audit logging
-        </div>
-        <div class="stat-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            Top-down map view
-        </div>
-        <div class="stat-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Session admin chat
-        </div>
+        <a class="btn btn-ghost" href="/Api/Document">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Read the API docs
+        </a>
     </div>
 </section>
 
-<!-- ─── FEATURES ─── -->
-<section class="section">
-    <h2 class="section-title">What you can do</h2>
-    <p class="section-desc">The platform gives authorized staff real-time visibility and control over any live Emergency Hamburg server.</p>
-    <div class="feature-grid">
-        <div class="feature-card">
-            <div class="feature-card-head">
-                <div class="feat-icon" style="background:rgba(79,110,247,0.1);color:#4f6ef7">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                </div>
-                <h3>Player management</h3>
-            </div>
-            <p>Kick, ban, freeze, warn, bring, or teleport to any player in any live server you moderate.</p>
+<section class="features">
+    <div class="feature-card">
+        <div class="feature-icon blue">
+            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
         </div>
-        <div class="feature-card">
-            <div class="feature-card-head">
-                <div class="feat-icon" style="background:rgba(56,189,248,0.1);color:#38bdf8">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
-                </div>
-                <h3>Top-down map</h3>
-            </div>
-            <p>See every player's position overlaid on the game map with team colors and real-time streaming.</p>
+        <h3>Live server & player map</h3>
+        <p>Watch every online server, see who's on duty, and track player positions on a real-time top-down map once a server fills up.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon violet">
+            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
-        <div class="feature-card">
-            <div class="feature-card-head">
-                <div class="feat-icon" style="background:rgba(34,197,94,0.1);color:#22c55e">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                </div>
-                <h3>Audit logs</h3>
-            </div>
-            <p>Every punishment, join, leave, robbery, and team change is captured with full context and timestamps.</p>
+        <h3>Staff & duty management</h3>
+        <p>Admins start, break, and end shifts from the dashboard, with the roster always sorted online, on duty, then on break.</p>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon warm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.5 0 2.91.37 4.15 1.02"/><path d="M21 5l-9 9"/></svg>
         </div>
-        <div class="feature-card">
-            <div class="feature-card-head">
-                <div class="feat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                </div>
-                <h3>Session admin chat</h3>
-            </div>
-            <p>All staff in the same server dashboard share a live ephemeral chat, complete with system action messages.</p>
+        <h3>Audit trail & punishments</h3>
+        <p>Every ban, kick, warn, and freeze is logged with a case ID — reversible from the dashboard or from your Discord bot.</p>
+    </div>
+</section>
+
+<section class="strip">
+    <div class="strip-inner">
+        <div class="strip-text">
+            <h4>Built for bots too</h4>
+            <p>The same API your dashboard uses is open to your Discord moderation bot.</p>
         </div>
-        <div class="feature-card">
-            <div class="feature-card-head">
-                <div class="feat-icon" style="background:rgba(239,68,68,0.1);color:#ef4444">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                </div>
-                <h3>Remote bans</h3>
-            </div>
-            <p>Issue bans and warns from the API or dashboard; they persist across server instances via DataStore sync.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-card-head">
-                <div class="feat-icon" style="background:rgba(168,85,247,0.1);color:#a855f7">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 12.5c0 5.799-4.701 10.5-10.5 10.5S1.5 18.299 1.5 12.5 6.201 2 12 2s10.5 4.701 10.5 10.5z"/></svg>
-                </div>
-                <h3>Discord integration</h3>
-            </div>
-            <p>All high-level audit events (bans, kicks, warns, shutdowns) are forwarded to your Discord webhook automatically.</p>
+        <div class="strip-badges">
+            <span class="badge">REST API</span>
+            <span class="badge">Roblox module</span>
+            <span class="badge">Discord-ready</span>
         </div>
     </div>
 </section>
 
 <footer>
-    Emergency Hamburg API &mdash; Internal moderation platform
+    <span>&copy; <span id="year"></span> Emergency Hamburg — Shield System</span>
+    <div class="footer-links">
+        <a href="/Api/Dashboard">Dashboard</a>
+        <a href="/Api/Document">Documentation</a>
+    </div>
 </footer>
 
-<div id="toast-container"></div>
-
-<script>
-const BASE_URL = window.location.origin;
-let currentUser = null;
-let loginWindow = null;
-let loginPollInterval = null;
-
-// ─── SESSION (sessionStorage for tab persistence) ───
-function loadSession() {
-    try {
-        const s = sessionStorage.getItem('ehUser');
-        if (s) return JSON.parse(s);
-    } catch {}
-    return null;
-}
-function saveSession(user) {
-    sessionStorage.setItem('ehUser', JSON.stringify(user));
-}
-function clearSession() {
-    sessionStorage.removeItem('ehUser');
-}
-
-// ─── INIT ───
-(function init() {
-    const saved = loadSession();
-    if (saved) {
-        currentUser = saved;
-        renderUser(saved);
-    }
-})();
-
-function renderUser(user) {
-    document.getElementById('btn-sign-in').style.display = 'none';
-    const pill = document.getElementById('user-pill');
-    pill.style.display = 'flex';
-
-    const avatarUrl = `${BASE_URL}/api/auth/avatar/${user.userId}`;
-    document.getElementById('user-pill-avatar').src = avatarUrl;
-    document.getElementById('user-pill-name').textContent = user.username;
-    document.getElementById('dd-avatar').src = avatarUrl;
-    document.getElementById('dd-name').textContent = user.username;
-    document.getElementById('dd-role').textContent = user.role || 'User';
-}
-
-function toggleUserDropdown(e) {
-    if (e) e.stopPropagation();
-    document.getElementById('user-dropdown').classList.toggle('open');
-}
-document.addEventListener('click', () => {
-    document.getElementById('user-dropdown').classList.remove('open');
-});
-
-function startLogin() {
-    const state = Math.random().toString(36).slice(2);
-    sessionStorage.setItem('oauthState', state);
-    loginWindow = window.open(`${BASE_URL}/oauth/login?state=${state}`, '_blank', 'width=500,height=600');
-
-    window.addEventListener('message', onOAuthMessage, { once: true });
-
-    // Fallback poll
-    loginPollInterval = setInterval(() => {
-        if (loginWindow && loginWindow.closed) {
-            clearInterval(loginPollInterval);
-        }
-    }, 1000);
-}
-
-function onOAuthMessage(e) {
-    if (e.origin !== window.location.origin) return;
-    if (e.data?.type === 'oauth_success') {
-        const user = { userId: e.data.userId, username: e.data.username, role: e.data.role };
-        currentUser = user;
-        saveSession(user);
-        renderUser(user);
-        toast('Signed in successfully', 'success');
-        // Register presence
-        fetch(`${BASE_URL}/api/auth/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(user)
-        }).catch(() => {});
-    } else if (e.data?.type === 'oauth_failed') {
-        toast('Sign in failed', 'error');
-    }
-}
-
-function signOut() {
-    if (currentUser) {
-        fetch(`${BASE_URL}/api/auth/disconnect`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUser.userId })
-        }).catch(() => {});
-    }
-    clearSession();
-    currentUser = null;
-    document.getElementById('user-pill').style.display = 'none';
-    document.getElementById('btn-sign-in').style.display = 'block';
-    document.getElementById('user-dropdown').classList.remove('open');
-    toast('Signed out', 'success');
-}
-
-function requireLoginThen(path) {
-    if (currentUser) {
-        navigate(path);
-    } else {
-        const state = Math.random().toString(36).slice(2);
-        sessionStorage.setItem('oauthState', state);
-        sessionStorage.setItem('loginRedirect', path);
-        loginWindow = window.open(`${BASE_URL}/oauth/login?state=${state}`, '_blank', 'width=500,height=600');
-        window.addEventListener('message', (e) => {
-            if (e.data?.type === 'oauth_success') {
-                onOAuthMessage(e);
-                const dest = sessionStorage.getItem('loginRedirect') || path;
-                sessionStorage.removeItem('loginRedirect');
-                window.location.href = dest;
-            }
-        }, { once: true });
-    }
-}
-
-function navigateTo(path) {
-    window.location.href = path;
-}
-
-function navigate(path, e) {
-    if (e) e.preventDefault();
-    window.location.href = path;
-}
-
-function toast(msg, type = '') {
-    const el = document.createElement('div');
-    el.className = `toast ${type}`;
-    el.textContent = msg;
-    document.getElementById('toast-container').appendChild(el);
-    setTimeout(() => el.remove(), 3500);
-}
-</script>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
 </html>

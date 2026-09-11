@@ -8,18 +8,23 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-    --bg:       #08090f;
-    --surface:  #0f1120;
-    --surface2: #161829;
+    --bg:       #05060b;
+    --surface:  #0e1020;
+    --surface2: #161a2f;
     --border:   rgba(255,255,255,0.07);
-    --text:     #e2e6f0;
-    --muted:    #6b7280;
-    --accent:   #4f6ef7;
-    --accent2:  #38bdf8;
+    --text:     #eef0fa;
+    --muted:    #6b7290;
+    --accent:   #5b6ef5;
+    --accent2:  #22d3ee;
     --danger:   #ef4444;
     --success:  #22c55e;
-    --warn:     #f59e0b;
+    --warn:     #f97316;
+    --purple:   #a855f7;
+    --pink:     #ec4899;
+    --grad-blue:   linear-gradient(135deg, #5b6ef5, #22d3ee);
+    --grad-violet: linear-gradient(135deg, #a855f7, #ec4899);
     --radius:   10px;
+    --radius-lg:16px;
     --font:     'Inter', system-ui, sans-serif;
     --font-h:   'Space Grotesk', sans-serif;
     --font-code:'JetBrains Mono', monospace;
@@ -36,11 +41,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
     font-family: var(--font);
-    background: var(--bg);
+    background:
+        radial-gradient(680px 400px at 90% -8%, rgba(91,110,245,0.14), transparent 60%),
+        radial-gradient(560px 340px at 0% 100%, rgba(236,72,153,0.08), transparent 55%),
+        var(--bg);
+    background-attachment: fixed;
     color: var(--text);
     display: flex;
     min-height: 100vh;
 }
+[data-theme="light"] body { background: var(--bg); }
 
 /* ─── SIDEBAR ─── */
 #sidebar {
@@ -73,6 +83,13 @@ body {
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--text);
+    display: flex; align-items: center; gap: 7px;
+}
+.sidebar-brand::before {
+    content: '';
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--grad-blue);
+    box-shadow: 0 0 8px rgba(91,110,245,0.5);
 }
 .sidebar-nav { padding: 0.75rem 0.5rem; flex: 1; }
 .sidebar-section {
@@ -94,15 +111,15 @@ body {
     text-decoration: none;
 }
 .sidebar-link:hover { background: var(--surface2); color: var(--text); }
-.sidebar-link.active { background: rgba(79,110,247,0.12); color: var(--accent); }
+.sidebar-link.active { background: rgba(91,110,245,0.12); color: var(--accent); }
 .method-badge {
     font-size: 0.65rem; font-weight: 700; font-family: var(--font-code);
     padding: 2px 5px; border-radius: 4px; margin-left: auto;
 }
 .method-get  { background: rgba(34,197,94,0.15);  color: #22c55e; }
-.method-post { background: rgba(79,110,247,0.15); color: #4f6ef7; }
+.method-post { background: rgba(91,110,245,0.15); color: #5b6ef5; }
 .method-del  { background: rgba(239,68,68,0.15);  color: #ef4444; }
-.method-patch{ background: rgba(245,158,11,0.15); color: #f59e0b; }
+.method-patch{ background: rgba(249,115,22,0.15); color: #f97316; }
 
 /* ─── MAIN ─── */
 #main {
@@ -302,15 +319,15 @@ pre {
 .num  { color: #fdba74; }
 .cmt  { color: #4b5563; font-style: italic; }
 .fn   { color: #60a5fa; }
-.key  { color: #38bdf8; }
+.key  { color: #22d3ee; }
 .op   { color: #94a3b8; }
 .url  { color: #fbbf24; }
 
 /* ─── INFO BOX ─── */
 .info-box {
     display: flex; gap: 10px;
-    background: rgba(79,110,247,0.08);
-    border: 1px solid rgba(79,110,247,0.2);
+    background: rgba(91,110,245,0.08);
+    border: 1px solid rgba(91,110,245,0.2);
     border-radius: 8px;
     padding: 12px 14px;
     font-size: 0.83rem;
@@ -319,8 +336,8 @@ pre {
     margin: 1rem 0;
 }
 .info-box.warn-box {
-    background: rgba(245,158,11,0.08);
-    border-color: rgba(245,158,11,0.2);
+    background: rgba(249,115,22,0.08);
+    border-color: rgba(249,115,22,0.2);
 }
 .info-box.danger-box {
     background: rgba(239,68,68,0.08);
@@ -330,8 +347,8 @@ pre {
 
 /* ─── NOT-A-DEV SECTION ─── */
 .not-dev-card {
-    background: linear-gradient(135deg, rgba(79,110,247,0.08), rgba(56,189,248,0.05));
-    border: 1px solid rgba(79,110,247,0.2);
+    background: linear-gradient(135deg, rgba(91,110,245,0.08), rgba(34,211,238,0.05));
+    border: 1px solid rgba(91,110,245,0.2);
     border-radius: var(--radius);
     padding: 2rem;
     text-align: center;
@@ -428,7 +445,7 @@ pre {
                 Introduction
             </div>
             <div class="info-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f6ef7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b6ef5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <div>All API requests must be sent to <strong>https://api-production-59e1.up.railway.app</strong>. Roblox server requests use the <code>ApiToken</code> Bearer header. Dashboard actions are authenticated via Roblox OAuth session.</div>
             </div>
             <p style="color:var(--muted);font-size:0.84rem;line-height:1.7;margin-bottom:1rem">Two categories of callers exist: <strong>Roblox servers</strong> (authenticated with Bearer token) and <strong>admin dashboard users</strong> (authenticated via Roblox OAuth). The dashboard handles the OAuth flow automatically.</p>
@@ -442,13 +459,13 @@ pre {
             </div>
 
             <div class="info-box warn-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <div><strong>Never share your server's API key</strong> with anyone you don't fully trust — anyone holding it can issue moderation commands and read your server's data as if they were the Roblox server itself. If you suspect a key has leaked, regenerate it immediately from the dashboard (Server → API Key, owner only) or by calling <code>Shield.SetApiKey(oldCode, newCode)</code> from a trusted Studio session. The old key keeps working for a short grace window after rotation so your live server doesn't get disconnected mid-swap.</div>
             </div>
 
             <div class="endpoint-card" id="ep-auth-header">
                 <div class="endpoint-head" onclick="toggleEp(this)">
-                    <span class="endpoint-method method-post" style="background:rgba(79,110,247,0.15);color:#4f6ef7">ANY</span>
+                    <span class="endpoint-method method-post" style="background:rgba(91,110,245,0.15);color:#5b6ef5">ANY</span>
                     <span class="endpoint-path">Authorization: Bearer &lt;serverApiKey&gt;</span>
                     <span class="endpoint-summary">Roblox server requests</span>
                     <svg class="endpoint-toggle" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -597,7 +614,7 @@ Shield.<span class="fn">Init</span>() <span class="cmt">-- generates/loads this 
                 Lock / Unlock Server
             </div>
             <div class="info-box warn-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <div>These endpoints only relay <strong>who</strong> requested the lock/unlock to your Roblox server — the module logs the request but the actual lock/unlock game logic (e.g. rejecting new joins) is something you implement yourself in Studio.</div>
             </div>
             <div class="endpoint-card">
@@ -700,7 +717,7 @@ Shield.<span class="fn">Init</span>() <span class="cmt">-- generates/loads this 
                 Game Events
             </div>
             <div class="info-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f6ef7" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b6ef5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <div>Game events are Roblox-only; they are called from your server scripts and are logged to the audit trail. They are <strong>not</strong> available from the dashboard or Discord bot.</div>
             </div>
 
@@ -796,7 +813,7 @@ Shield.<span class="fn">Init</span>() <span class="cmt">-- generates/loads this 
                 Ban / Unban
             </div>
             <div class="info-box warn-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <div>Bans are stored in-memory on the API and replicated to Roblox DataStore via the <code>ban</code> command. A ban with <code>duration: -1</code> is permanent. Duration is always in <strong>seconds</strong>.</div>
             </div>
             <div class="endpoint-card">
@@ -1099,7 +1116,7 @@ Shield.<span class="fn">Init</span>() <span class="cmt">-- generates/loads this 
                 Roblox Module Reference
             </div>
             <div class="info-box warn-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <div>The module no longer runs anything automatically on <code>require()</code>. Call <code>Shield.Init()</code> once your server is ready — nothing connects to the API before that.</div>
             </div>
             <p style="color:var(--muted);font-size:0.84rem;line-height:1.7;margin-bottom:1.25rem">Place <code>ShieldModule.lua</code> in ServerScriptService. All functions besides <code>Init</code>/<code>Deinit</code> are non-blocking (wrapped in <code>task.spawn</code>).</p>
