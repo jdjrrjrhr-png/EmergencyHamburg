@@ -181,7 +181,18 @@ function requireAuth() {
     State.user = Session.get();
     if (!State.user) {
         // Redirect to landing page with login intent
-        window.location.href = '/Api?login=1';
+        const ClientId = '8623887428915616165';
+const RedirectURI = 'https://api-production-59e1.up.railway.app/oauth/callback';
+
+const params = new URLSearchParams({
+    client_id: ClientId,
+    redirect_uri: RedirectURI,
+    scope: 'openid profile',
+    response_type: 'code'
+});
+
+// الرابط المباشر الصحيح لـ Roblox OAuth2
+window.location.href = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
         return false;
     }
     renderNavUser();
