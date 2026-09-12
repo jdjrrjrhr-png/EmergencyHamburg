@@ -16,7 +16,7 @@
 const adminRoster = {
     globalAdmins: new Set()   // userIds with admin access across every server
 };
-const serverStaff = {2748615471};       // serverCode -> { mods: Set<userId>, ownerId: number|null }
+const serverStaff = {};       // serverCode -> { mods: Set<userId>, ownerId: number|null }
 
 function getServerStaff(serverCode) {
     if (!serverStaff[serverCode]) {
