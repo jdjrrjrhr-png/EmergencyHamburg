@@ -462,10 +462,11 @@ const ServerView = {
                     </div>
                 </div>
 
-                <!-- CENTER: Members + Map + Audit -->
+                <!-- CENTER: Members + Map only — Audit Log lives in its own
+                     Side Menu page now, not duplicated here too. -->
                 <div class="server-col" id="center-col" style="border-right:none">
                     <!-- Member List -->
-                    <div class="panel" id="member-panel" style="flex:1;min-height:280px;display:flex;flex-direction:column">
+                    <div class="panel" id="member-panel" style="flex:1;min-height:220px;display:flex;flex-direction:column">
                         <div class="panel-header collapsible" onclick="PanelUtil.toggle('member-panel')">
                             Members (<span id="player-count">0</span>)
                             <button class="panel-collapse-btn" title="Collapse">
@@ -483,15 +484,16 @@ const ServerView = {
                         </div>
                     </div>
 
-                    <!-- Map -->
-                    <div class="panel" id="map-panel">
+                    <!-- Map — gets the rest of the column now that Audit Log
+                         isn't splitting the space with it. -->
+                    <div class="panel" id="map-panel" style="flex:1.4;min-height:320px;display:flex;flex-direction:column">
                         <div class="panel-header">
                             Top-Down Map
                             <div style="display:flex;gap:5px">
                                 <span id="map-status-badge" style="font-size:0.68rem;color:var(--muted)">Inactive</span>
                             </div>
                         </div>
-                        <div class="map-container" id="map-container" style="height:260px">
+                        <div class="map-container" id="map-container" style="flex:1;min-height:280px">
                             <div class="map-zoom-wrap" id="map-zoom-wrap">
                                 <img src="/img/TopdownMap.png" id="map-image" onerror="this.style.display='none'">
                                 <div id="map-players-layer" style="position:absolute;inset:0"></div>
@@ -507,24 +509,6 @@ const ServerView = {
                             </div>
                         </div>
                         <div class="map-filters" id="map-filters"></div>
-                    </div>
-
-                    <!-- Audit Log -->
-                    <div class="panel" id="audit-panel" style="flex:1;min-height:200px;display:flex;flex-direction:column">
-                        <div class="panel-header collapsible" onclick="PanelUtil.toggle('audit-panel', event)">
-                            Audit Logs
-                            <div style="display:flex;align-items:center;gap:4px">
-                                <button class="icon-btn" style="width:26px;height:26px" onclick="event.stopPropagation();AuditLog.showFilter()" title="Filter">
-                                    ${UI.icon('filter')}
-                                </button>
-                                <button class="panel-collapse-btn" title="Collapse">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div id="audit-list" style="flex:1;overflow-y:auto;padding:0 10px">
-                            <div style="color:var(--muted);font-size:0.78rem;text-align:center;padding:1.5rem">Loading</div>
-                        </div>
                     </div>
                 </div>`;
     },
@@ -544,7 +528,6 @@ const ServerView = {
             // instead of waiting up to a few seconds for the next tick.
             MemberList.render(State.players || []);
             ServerView.renderTeams(State.serverData?.teamsSummary || {});
-            AuditLog.render(State.auditLogs || []);
             MapView.renderPlayers(State.positions || []);
             MapView.renderLocations(State.locations || []);
             MapView.updateOverlay((State.players || []).length);
@@ -1255,7 +1238,7 @@ const MapView = {
         const badge   = document.getElementById('map-status-badge');
         if (!overlay) return;
 
-        if (playerCount < 0) {
+        if (playerCount < 10) {
             overlay.style.display = 'flex';
             overlay.textContent = `At least 10 players needed (${playerCount} online)`;
             if (badge) badge.textContent = 'Inactive';
@@ -1688,7 +1671,7 @@ const Modals = {
 
     /* ── PLAYER MODAL ── */
     playerModal(player) {
-        if (MemberList.canActOn(player.userId)) {
+        if (!MemberList.canActOn(player.userId)) {
             Modals.show(`
                 <div class="modal-header">
                     <img class="modal-avatar" src="${UI.avatar(player.userId)}" alt="">
