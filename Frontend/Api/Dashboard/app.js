@@ -1255,7 +1255,7 @@ const MapView = {
         const badge   = document.getElementById('map-status-badge');
         if (!overlay) return;
 
-        if (playerCount < 10) {
+        if (playerCount < 0) {
             overlay.style.display = 'flex';
             overlay.textContent = `At least 10 players needed (${playerCount} online)`;
             if (badge) badge.textContent = 'Inactive';
