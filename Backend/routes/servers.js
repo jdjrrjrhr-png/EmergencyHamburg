@@ -234,7 +234,7 @@ router.get('/staff-activity', verifyAdminAccess, (req, res) => {
 ============================================================ */
 
 /** ─── HEARTBEAT (from Roblox server) ─── */
-router.post('/:serverCode/heartbeat', verifyServerApiKey, (req, res) => {
+router.post('/:serverCode/heartbeat', verifyRobloxToken, verifyServerApiKey, (req, res) => {
     const { serverCode } = req.params;
     const { playersList, serverName, joinCode } = req.body;
 
@@ -293,7 +293,7 @@ router.post('/:serverCode/heartbeat', verifyServerApiKey, (req, res) => {
 });
 
 /** ─── MAP POSITION STREAMING (from Roblox) ─── */
-router.post('/:serverCode/positions', verifyServerApiKey, (req, res) => {
+router.post('/:serverCode/positions', verifyRobloxToken, verifyServerApiKey, (req, res) => {
     const { serverCode } = req.params;
     const { positions } = req.body;
 
@@ -318,7 +318,7 @@ router.post('/:serverCode/positions', verifyServerApiKey, (req, res) => {
 });
 
 /** ─── ADD LOCATION MARKER (from Roblox) ─── */
-router.post('/:serverCode/addlocation', verifyServerApiKey, (req, res) => {
+router.post('/:serverCode/addlocation', verifyRobloxToken, (req, res) => {
     const { serverCode } = req.params;
     const { locationName, LocationPosition, Text } = req.body;
 
@@ -529,7 +529,7 @@ router.post('/:serverCode/unlock', smartRateLimiter, verifyAdminAccess, (req, re
 });
 
 /** ─── DELETE SERVER (server shutdown signal from Roblox) ─── */
-router.delete('/:serverCode', verifyServerApiKey, (req, res) => {
+router.delete('/:serverCode', verifyRobloxToken, (req, res) => {
     const { serverCode } = req.params;
     delete liveServers[serverCode];
     delete commandsQueue[serverCode];
@@ -549,7 +549,7 @@ router.delete('/:serverCode', verifyServerApiKey, (req, res) => {
 });
 
 /** ─── UPDATE SERVER NAME / JOIN CODE (from Roblox module) ─── */
-router.post('/:serverCode/meta', verifyServerApiKey, (req, res) => {
+router.post('/:serverCode/meta', verifyRobloxToken, (req, res) => {
     const { serverCode } = req.params;
     const { name, joinCode, ownerId } = req.body;
     if (!serverMeta[serverCode]) serverMeta[serverCode] = {};
@@ -647,7 +647,7 @@ router.post('/:serverCode/chat', smartRateLimiter, verifyAdminAccess, (req, res)
 });
 
 /** ─── UPDATE ADMINS (UpdateAdmins — from Roblox module) ─── */
-router.post('/:serverCode/admins', verifyServerApiKey, (req, res) => {
+router.post('/:serverCode/admins', verifyRobloxToken, (req, res) => {
     const { serverCode } = req.params;
     const { admins, mods, adminIds } = req.body;
 
@@ -678,7 +678,7 @@ router.post('/:serverCode/admins', verifyServerApiKey, (req, res) => {
 });
 
 /** ─── SET OWNER (SetOwner — from Roblox module) ─── */
-router.post('/:serverCode/owner', verifyServerApiKey, (req, res) => {
+router.post('/:serverCode/owner', verifyRobloxToken, (req, res) => {
     const { serverCode } = req.params;
     const { ownerId } = req.body;
     if (!ownerId) return res.status(400).json({ error: 'ownerId required' });

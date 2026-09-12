@@ -10,18 +10,18 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css">
 <style>
 :root {
-    --bg:       #09090b;
-    --surface:  #101012;
-    --surface2: #17171a;
+    --bg:       #08090f;
+    --surface:  #0f1120;
+    --surface2: #161829;
     --border:   rgba(255,255,255,0.07);
     --text:     #e2e6f0;
     --muted:    #6b7280;
-    --accent:   #C3F53D;
+    --accent:   #4f6ef7;
     --accent2:  #38bdf8;
     --danger:   #ef4444;
     --success:  #22c55e;
     --warn:     #f59e0b;
-    --radius:   14px;
+    --radius:   12px;
     --font:     'Inter', system-ui, sans-serif;
     --font-h:   'Space Grotesk', sans-serif;
 }
@@ -49,7 +49,7 @@ nav {
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 2rem;
     height: 60px;
-    background: rgba(9,9,11,0.85);
+    background: rgba(8,9,15,0.85);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
 }
@@ -61,14 +61,6 @@ nav {
     letter-spacing: -0.01em;
     display: flex; align-items: center; gap: 8px;
 }
-.nav-brand .dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 2s infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 .nav-right { display: flex; align-items: center; gap: 12px; }
 
 /* User avatar pill */
@@ -117,10 +109,6 @@ nav {
 .dropdown-header img { width: 40px; height: 40px; border-radius: 50%; }
 .dropdown-header-info { flex: 1; }
 .dropdown-header-info .name { font-weight: 600; font-size: 0.85rem; }
-.dropdown-header-info .role {
-    font-size: 0.72rem; color: var(--muted);
-    text-transform: capitalize;
-}
 .dropdown-item {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 8px;
@@ -135,7 +123,7 @@ nav {
 
 .btn-sign-in {
     background: var(--accent);
-    color: #0a1408;
+    color: #fff;
     border: none;
     border-radius: 8px;
     padding: 7px 16px;
@@ -162,13 +150,13 @@ nav {
     left: 50%;
     transform: translateX(-50%);
     width: 600px; height: 400px;
-    background: radial-gradient(ellipse at center, rgba(195,245,61,0.15) 0%, transparent 70%);
+    background: radial-gradient(ellipse at center, rgba(79,110,247,0.15) 0%, transparent 70%);
     pointer-events: none;
 }
 .hero-eyebrow {
     display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(195,245,61,0.12);
-    border: 1px solid rgba(195,245,61,0.25);
+    background: rgba(79,110,247,0.12);
+    border: 1px solid rgba(79,110,247,0.25);
     color: var(--accent2);
     font-size: 0.75rem; font-weight: 500;
     padding: 4px 12px;
@@ -226,15 +214,15 @@ nav {
 .cta-card::before {
     content: '';
     position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(195,245,61,0.05), transparent);
+    background: linear-gradient(135deg, rgba(79,110,247,0.05), transparent);
     opacity: 0;
     transition: opacity 0.2s;
 }
-.cta-card:hover { transform: translateY(-2px); border-color: rgba(195,245,61,0.35); box-shadow: 0 8px 32px rgba(195,245,61,0.1); }
+.cta-card:hover { transform: translateY(-2px); border-color: rgba(79,110,247,0.35); box-shadow: 0 8px 32px rgba(79,110,247,0.1); }
 .cta-card:hover::before { opacity: 1; }
 .cta-card.requires-login .lock-badge {
     position: absolute; top: 10px; right: 10px;
-    background: rgba(195,245,61,0.12);
+    background: rgba(79,110,247,0.12);
     color: var(--accent);
     border-radius: 6px;
     padding: 2px 7px;
@@ -246,7 +234,7 @@ nav {
     display: flex; align-items: center; justify-content: center;
     font-size: 1.1rem;
 }
-.cta-icon.blue  { background: rgba(195,245,61,0.12); color: var(--accent); }
+.cta-icon.blue  { background: rgba(79,110,247,0.12); color: var(--accent); }
 .cta-icon.cyan  { background: rgba(56,189,248,0.12); color: var(--accent2); }
 .cta-icon.green { background: rgba(34,197,94,0.12);  color: var(--success); }
 .cta-card-title { font-weight: 600; font-size: 0.95rem; }
@@ -344,7 +332,6 @@ footer {
 <!-- ─── NAV ─── -->
 <nav>
     <div class="nav-brand">
-        <span class="dot"></span>
         Emergency Hamburg API
     </div>
     <div class="nav-right">
@@ -356,7 +343,6 @@ footer {
                     <img id="dd-avatar" src="" alt="">
                     <div class="dropdown-header-info">
                         <div class="name" id="dd-name"></div>
-                        <div class="role" id="dd-role"></div>
                     </div>
                 </div>
                 <div class="dropdown-item" onclick="navigateTo('/Api/Dashboard')">
@@ -380,10 +366,6 @@ footer {
 <!-- ─── HERO ─── -->
 <section class="hero fade-in">
     <div class="hero-glow"></div>
-    <div class="hero-eyebrow">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Live API
-    </div>
     <h1 class="hero-title">Emergency Hamburg <span class="highlight">API</span></h1>
     <p class="hero-sub">A real-time moderation and management platform for your Emergency Hamburg Roblox experience — from live player oversight to full audit logging.</p>
 
@@ -405,25 +387,6 @@ footer {
             <div class="cta-card-desc">Moderate live servers, manage punishments, view audit logs in real time.</div>
         </div>
     </div>
-
-    <div class="stats-bar">
-        <div class="stat-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-            Live player tracking
-        </div>
-        <div class="stat-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Full audit logging
-        </div>
-        <div class="stat-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            Top-down map view
-        </div>
-        <div class="stat-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Session admin chat
-        </div>
-    </div>
 </section>
 
 <!-- ─── FEATURES ─── -->
@@ -433,7 +396,7 @@ footer {
     <div class="feature-grid">
         <div class="feature-card">
             <div class="feature-card-head">
-                <div class="feat-icon" style="background:rgba(195,245,61,0.1);color:#C3F53D">
+                <div class="feat-icon" style="background:rgba(79,110,247,0.1);color:#4f6ef7">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </div>
                 <h3>Player management</h3>
@@ -534,7 +497,6 @@ function renderUser(user) {
     document.getElementById('user-pill-name').textContent = user.username;
     document.getElementById('dd-avatar').src = avatarUrl;
     document.getElementById('dd-name').textContent = user.username;
-    document.getElementById('dd-role').textContent = user.role || 'User';
 }
 
 function toggleUserDropdown(e) {

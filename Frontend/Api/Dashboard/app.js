@@ -181,18 +181,7 @@ function requireAuth() {
     State.user = Session.get();
     if (!State.user) {
         // Redirect to landing page with login intent
-        const ClientId = '8623887428915616165';
-const RedirectURI = 'https://api-production-59e1.up.railway.app/oauth/callback';
-
-const params = new URLSearchParams({
-    client_id: ClientId,
-    redirect_uri: RedirectURI,
-    scope: 'openid profile',
-    response_type: 'code'
-});
-
-// الرابط المباشر الصحيح لـ Roblox OAuth2
-window.location.href = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
+        window.location.href = '/Api?login=1';
         return false;
     }
     renderNavUser();
@@ -206,9 +195,6 @@ function renderNavUser() {
     if (!u) return;
     document.getElementById('nav-avatar').src    = UI.avatar(u.userId);
     document.getElementById('nav-username').textContent = u.username;
-    const badge = document.getElementById('nav-role-badge');
-    badge.textContent = u.role || 'user';
-    badge.className   = `user-pill-role role-${u.role || 'mod'}`;
 }
 
 /* ================================================================
@@ -315,8 +301,19 @@ const Pages = {
             return;
         }
         State.lastServersRefresh = now;
-        if (btn) { btn.classList.add('spinning'); }
-        await Pages.loadServers();
+
+        // Always let the spin finish a full, smooth 360° before removing the
+        // class — previously the class was ripped off as soon as the network
+        // call resolved, which (since loadServers() is often faster than the
+        // animation) cut the rotation off mid-way and made it "snap back"
+        // instead of completing. Restarting via reflow + a minimum-duration
+        // wait guarantees a clean spin every time, however fast the fetch is.
+        if (btn) {
+            btn.classList.remove('spinning');
+            void btn.offsetWidth; // force reflow so re-adding the class restarts the animation
+            btn.classList.add('spinning');
+        }
+        await Promise.all([Pages.loadServers(), new Promise(r => setTimeout(r, 600))]);
         if (btn) { btn.classList.remove('spinning'); }
     },
 
@@ -369,11 +366,13 @@ const Pages = {
         State.chatMessages = [];
         State.auditLogs = [];
         State.currentView = 'main';
+        AuditLog._loadFilter();
 
         const app = document.getElementById('app');
         app.innerHTML = ServerView.html(serverCode);
         Chat.renderFab();
         MapView.initInteraction();
+        MapView.renderFilters();
 
         // Start all polls
         startPoll('players', ServerView.fetchPlayers, CFG.playersPollInterval);
@@ -540,6 +539,7 @@ const ServerView = {
             container.className = 'server-body';
             container.innerHTML = ServerView.mainViewHtml();
             MapView.initInteraction();
+            MapView.renderFilters();
             // Repaint immediately from whatever the background polls already have,
             // instead of waiting up to a few seconds for the next tick.
             MemberList.render(State.players || []);
@@ -566,6 +566,7 @@ const ServerView = {
         return {
             staff: `${UI.icon('users')} Staff Status`,
             punished: `${UI.icon('ban')} Punished Users`,
+            audit: `${UI.icon('filter')} Audit Log`,
             stats: `${UI.icon('chart')} Stats`,
             apikey: `${UI.icon('key')} Server API Key`
         }[view] || view;
@@ -574,6 +575,7 @@ const ServerView = {
     renderPageView(view) {
         if (view === 'staff')    return PageViews.staff();
         if (view === 'punished') return PageViews.punished();
+        if (view === 'audit')    return PageViews.audit();
         if (view === 'stats')    return PageViews.stats();
         if (view === 'apikey')   return PageViews.apiKey();
     },
@@ -882,7 +884,16 @@ const MemberList = {
    AUDIT LOG
 ================================================================ */
 const AuditLog = {
-    _filter: JSON.parse(localStorage.getItem('auditFilter') || 'null'),
+    _filter: null, // loaded per-server on demand — see _filterKey()/_loadFilter()
+
+    _filterKey() {
+        return `auditFilter_${State.serverCode}`;
+    },
+
+    _loadFilter() {
+        AuditLog._filter = JSON.parse(localStorage.getItem(AuditLog._filterKey()) || 'null');
+        return AuditLog._filter;
+    },
     _logRefs: {},
 
     async fetch() {
@@ -932,7 +943,7 @@ const AuditLog = {
             shots_fired:   { style:'background:rgba(168,85,247,0.1)', svg: UI.icon('shield') },
             player_down:   { style:'background:rgba(239,68,68,0.08)', svg: UI.icon('person') },
             team_changed:  { style:'background:rgba(56,189,248,0.1)', svg: UI.icon('users') },
-            phone_call:    { style:'background:rgba(195,245,61,0.1)', svg: UI.icon('send') },
+            phone_call:    { style:'background:rgba(79,110,247,0.1)', svg: UI.icon('send') },
             set_wanted:    { style:'background:rgba(239,68,68,0.12)', svg: UI.icon('warn') },
         };
         return map[type] || { style:'background:var(--surface2)', svg: '' };
@@ -961,7 +972,7 @@ const AuditLog = {
 
     showFilter() {
         const ALL_TYPES = ['player_added','player_left','punishment','robbery','shots_fired','player_down','team_changed','phone_call','set_wanted'];
-        const active = AuditLog._filter || ALL_TYPES;
+        const active = AuditLog._loadFilter() || ALL_TYPES;
 
         const body = `<h3 style="margin-bottom:12px;font-family:var(--font-h);font-size:0.95rem">Filter audit logs</h3>
         ${ALL_TYPES.map(t => `
@@ -981,15 +992,19 @@ const AuditLog = {
     applyFilter() {
         const checks = document.querySelectorAll('#modal-root input[type=checkbox]');
         const selected = [...checks].filter(c => c.checked).map(c => c.value);
-        AuditLog._filter = selected.length === 8 ? null : selected;
-        localStorage.setItem('auditFilter', JSON.stringify(AuditLog._filter));
+        AuditLog._filter = selected.length === 9 ? null : selected;
+        if (AuditLog._filter) {
+            localStorage.setItem(AuditLog._filterKey(), JSON.stringify(AuditLog._filter));
+        } else {
+            localStorage.removeItem(AuditLog._filterKey());
+        }
         Modals.close();
         AuditLog.fetch();
     },
 
     clearFilter() {
         AuditLog._filter = null;
-        localStorage.removeItem('auditFilter');
+        localStorage.removeItem(AuditLog._filterKey());
         Modals.close();
         AuditLog.fetch();
     }
@@ -1333,12 +1348,15 @@ const MapView = {
         const el = document.getElementById('map-filters');
         if (!el) return;
         const teams = ['BusCompany','Citizen','FireDepartment','HARS','Police','Prisoner','TruckCompany'];
-        el.innerHTML = teams.map(t => `
-            <button class="map-filter-btn ${State.mapFilters[t] !== false ? 'active' : ''}"
+        el.innerHTML = teams.map(t => {
+            const active = State.mapFilters[t] !== false;
+            return `
+            <button class="map-filter-btn ${active ? 'active' : ''}"
                 onclick="MapView.toggleFilter('${t}')">
-                ${State.mapFilters[t] !== false ? '✓ ' : ''}${t}
-            </button>
-        `).join('');
+                <span class="map-filter-check">${active ? '<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}</span>
+                ${t}
+            </button>`;
+        }).join('');
     },
 
     toggleFilter(team) {
@@ -1380,16 +1398,34 @@ const SideMenu = {
                 ${icon}
                 ${label}
             </button>`;
+        const actionItem = (onclick, icon, label) => `
+            <button class="side-menu-item" onclick="${onclick}">
+                ${icon}
+                ${label}
+            </button>`;
         const extra = document.createElement('div');
         extra.id = 'side-menu-root';
         extra.innerHTML = `
         <div class="side-menu-overlay" onclick="SideMenu.close()"></div>
         <div class="side-menu-panel">
-            <div class="side-menu-title">Navigate</div>
+            <div class="side-menu-header">
+                <div>
+                    <div class="side-menu-server-name">${document.getElementById('sv-name')?.textContent || 'Server'}</div>
+                    <div class="side-menu-server-code">${document.getElementById('sv-code')?.textContent || ''}</div>
+                </div>
+                <button class="modal-close" onclick="SideMenu.close()">${UI.icon('close')}</button>
+            </div>
+
+            <div class="side-menu-title">Views</div>
             ${item('main', '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>', 'Main')}
             ${item('staff', UI.icon('users'), 'Staff Status')}
             ${item('punished', UI.icon('ban'), 'Punished Users')}
+            ${item('audit', '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>', 'Audit Log')}
             ${item('stats', UI.icon('chart'), 'Stats')}
+
+            <div class="side-menu-divider"></div>
+            <div class="side-menu-title">Tools</div>
+            ${actionItem('SideMenu.close();Chat.openPanel()', UI.icon('send'), 'Chat')}
             ${isOwner ? item('apikey', UI.icon('key'), 'API Key') : ''}
         </div>`;
         document.body.appendChild(extra);
@@ -1414,6 +1450,18 @@ const PageViews = {
         // ServerView.renderStaff() already targets this exact element id on every
         // background poll tick, so it stays live automatically from here on.
         Modals._renderStaffStatusList(State.staff || [], document.getElementById('staff-status-full-list'));
+    },
+
+    /* ── AUDIT LOG (full page — same #audit-list id, so the background poll keeps it live) ── */
+    async audit() {
+        const content = document.getElementById('page-view-content');
+        if (!content) return;
+        content.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+            <button class="icon-btn" onclick="AuditLog.showFilter()" title="Filter">${UI.icon('filter')}</button>
+        </div>
+        <div id="audit-list" style="max-height:70vh;overflow-y:auto"></div>`;
+        AuditLog.render(State.auditLogs || []);
     },
 
     /* ── PUNISHED USERS (All / Warn / Ban / Freeze) ── */
@@ -1585,7 +1633,7 @@ const PageViews = {
                     <td><img src="${UI.avatar(s.userId)}" style="width:30px;height:30px;border-radius:50%"></td>
                     <td>
                         <div style="font-weight:500">${s.username}</div>
-                        <span class="tag" style="background:${s.role==='owner'?'rgba(168,85,247,0.15)':s.role==='admin'?'rgba(195,245,61,0.15)':'var(--surface2)'};color:${s.role==='owner'?'var(--purple)':s.role==='admin'?'var(--accent)':'var(--muted)'};font-size:0.62rem">${s.role}</span>
+                        <span class="tag" style="background:${s.role==='owner'?'rgba(168,85,247,0.15)':s.role==='admin'?'rgba(79,110,247,0.15)':'var(--surface2)'};color:${s.role==='owner'?'var(--purple)':s.role==='admin'?'var(--accent)':'var(--muted)'};font-size:0.62rem">${s.role}</span>
                     </td>
                     <td><span class="status-dot ${s.status}"></span> ${statusLabel[s.status] || s.status}</td>
                     <td style="font-family:var(--font-mono)">${UI.formatDuration(s.onDutySeconds)}</td>
@@ -1805,7 +1853,7 @@ const Modals = {
         const warns = State.warnsByPlayer[userId] || [];
         Modals.show(`
         <div class="modal-header">
-            <span class="modal-title">${UI.icon('warn')} Warns — ${username}</span>
+            <span class="modal-title">${UI.icon('warn')} Warns Log — ${username}</span>
             <button class="modal-close" onclick="Modals.close()">${UI.icon('close')}</button>
         </div>
         ${warns.length === 0 ? '<p style="color:var(--muted);text-align:center;padding:1rem">No warns</p>' :
@@ -1813,16 +1861,18 @@ const Modals = {
             <div class="warn-entry">
                 <div class="warn-index">#${i+1}</div>
                 <div class="warn-body">
-                    <div class="warn-reason">${w.reason}</div>
-                    <div class="warn-meta">${UI.timeAgo(w.warnedAt)} · by ${w.responsibleUsername}</div>
+                    <div class="warn-meta-row">
+                        <span class="warn-time" title="${UI.formatDateTime(w.warnedAt)}">${UI.timeAgo(w.warnedAt)}</span>
+                        <span class="warn-reason">${w.reason}</span>
+                    </div>
                     <div class="warn-caseid">Case: ${w.caseId}</div>
                 </div>
                 <button class="hold-btn red-hold" style="font-size:0.7rem;padding:5px 8px"
                     onmousedown="HoldBtn.start(this, 300, () => Actions.removeWarn(${userId}, '${username}', '${w.caseId}', ${i}))"
                     onmouseup="HoldBtn.stop(this)"
                     onmouseleave="HoldBtn.stop(this)">
-                    <div class="hold-fill"></div>
-                    <span>Remove</span>
+                    <div class="hold-fill rtl"></div>
+                    <span>Revoke</span>
                 </button>
             </div>`).join('')}`, 'wide');
     },
@@ -2015,7 +2065,7 @@ const Modals = {
                     <div class="staff-name" style="font-size:0.85rem">${m.username}</div>
                     <div class="staff-duration">${since}</div>
                 </div>
-                <span class="tag" style="background:${m.role === 'owner' ? 'rgba(168,85,247,0.15)' : m.role === 'admin' ? 'rgba(195,245,61,0.15)' : 'var(--surface2)'};color:${m.role === 'owner' ? 'var(--purple)' : m.role === 'admin' ? 'var(--accent)' : 'var(--muted)'}">${m.role || 'mod'}</span>
+                <span class="tag" style="background:${m.role === 'owner' ? 'rgba(168,85,247,0.15)' : m.role === 'admin' ? 'rgba(79,110,247,0.15)' : 'var(--surface2)'};color:${m.role === 'owner' ? 'var(--purple)' : m.role === 'admin' ? 'var(--accent)' : 'var(--muted)'}">${m.role || 'mod'}</span>
                 <div style="display:flex;align-items:center;gap:5px">
                     <span class="status-dot ${m.status}"></span>
                     <span class="staff-status">${statusLabel[m.status] || m.status}</span>
@@ -2401,8 +2451,6 @@ const HoldBtn = {
         App.navigate('server', { serverCode });
     } else {
         App.navigate('servers');
-        // Render map filters
-        setTimeout(() => MapView.renderFilters(), 500);
     }
 
     // Heartbeat presence

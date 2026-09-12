@@ -7,10 +7,10 @@ const {
     commandsQueue, activeAdmins, liveServers,
     generateCaseId, formatDuration, pushAuditLog, pushSessionChat, trackPunishment
 } = require('../state');
-const { verifyAdminAccess, verifyServerApiKey, smartRateLimiter, getUserRole } = require('../middleware/auth');
+const { verifyAdminAccess, verifyAdminOrRoblox, verifyRobloxToken, smartRateLimiter, getUserRole } = require('../middleware/auth');
 
 // ─── BAN ───
-router.post('/ban', smartRateLimiter, verifyAdminAccess, async (req, res) => {
+router.post('/ban', smartRateLimiter, verifyAdminOrRoblox, async (req, res) => {
     const {
         serverCode, bannedUserName, bannedUserId,
         responsibleId, responsibleUsername,
@@ -80,7 +80,7 @@ router.post('/ban', smartRateLimiter, verifyAdminAccess, async (req, res) => {
 });
 
 // ─── UNBAN ───
-router.post('/unban', smartRateLimiter, verifyAdminAccess, async (req, res) => {
+router.post('/unban', smartRateLimiter, verifyAdminOrRoblox, async (req, res) => {
     const { userId, responsibleUsername, reason } = req.body;
     if (!userId) return res.status(400).json({ error: 'userId required' });
 
@@ -110,18 +110,19 @@ router.get('/ban/:userId', verifyAdminAccess, (req, res) => {
 });
 
 // ─── KICK ───
-router.post('/kick', smartRateLimiter, verifyAdminAccess, async (req, res) => {
-    const { serverCode, target, targetId, targetUsername, reason } = req.body;
+router.post('/kick', smartRateLimiter, verifyAdminOrRoblox, async (req, res) => {
+    const { serverCode, target, targetId, targetUsername, reason, responsibleUsername } = req.body;
     if (!serverCode || !target) return res.status(400).json({ error: 'serverCode and target required' });
 
     const admin = activeAdmins[req.adminId];
+    const actorName = admin?.username || responsibleUsername || 'Unknown';
 
     if (!commandsQueue[serverCode]) commandsQueue[serverCode] = [];
     commandsQueue[serverCode].push({
         action: 'kick', target, targetId,
         reason: reason || 'No reason provided',
         senderId: req.adminId,
-        senderName: admin?.username || 'Unknown',
+        senderName: actorName,
         issuedAt: Date.now()
     });
     trackPunishment(req.adminId);
@@ -130,7 +131,7 @@ router.post('/kick', smartRateLimiter, verifyAdminAccess, async (req, res) => {
         type: 'punishment',
         punishmentType: 'kick',
         actorId: req.adminId,
-        actorUsername: admin?.username || 'Unknown',
+        actorUsername: actorName,
         targetId: parseInt(targetId) || null,
         targetUsername: target,
         reason: reason || 'No reason provided',
@@ -141,7 +142,7 @@ router.post('/kick', smartRateLimiter, verifyAdminAccess, async (req, res) => {
 });
 
 // ─── WARN ───
-router.post('/warn', smartRateLimiter, verifyAdminAccess, async (req, res) => {
+router.post('/warn', smartRateLimiter, verifyAdminOrRoblox, async (req, res) => {
     const { serverCode, toWho, toWhoId, responsibleId, responsibleUsername, reason, time } = req.body;
     if (!toWhoId) return res.status(400).json({ error: 'toWhoId required' });
 
@@ -192,7 +193,7 @@ router.post('/warn', smartRateLimiter, verifyAdminAccess, async (req, res) => {
 });
 
 // ─── UNWARN ───
-router.post('/unwarn', smartRateLimiter, verifyAdminAccess, async (req, res) => {
+router.post('/unwarn', smartRateLimiter, verifyAdminOrRoblox, async (req, res) => {
     const { serverCode, who, whoId, caseId } = req.body;
     if (!whoId || !caseId) return res.status(400).json({ error: 'whoId and caseId required' });
 
@@ -229,7 +230,7 @@ router.get('/warns/:userId', verifyAdminAccess, (req, res) => {
 });
 
 // ─── FREEZE / UNFREEZE ───
-router.post('/freeze', smartRateLimiter, verifyAdminAccess, (req, res) => {
+router.post('/freeze', smartRateLimiter, verifyAdminOrRoblox, (req, res) => {
     const { serverCode, targetUsername, targetId, responsibleId, responsibleUsername } = req.body;
     if (!serverCode || !targetId) return res.status(400).json({ error: 'serverCode and targetId required' });
 
@@ -302,7 +303,7 @@ router.get('/list', verifyAdminAccess, (req, res) => {
 // ─── ROBLOX MODULE: Accept punishment log (from server script) ───
 // These endpoints let the Roblox server tell the API "I executed this punishment"
 // so it appears in logs — they don't command the server back.
-router.post('/log', verifyServerApiKey, (req, res) => {
+router.post('/log', verifyRobloxToken, (req, res) => {
     const { serverCode, type, ...rest } = req.body;
     pushAuditLog(serverCode || 'global', {
         type: 'punishment',

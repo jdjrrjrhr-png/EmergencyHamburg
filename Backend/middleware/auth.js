@@ -1,9 +1,14 @@
 'use strict';
 
-const { adminRoster, serverStaff, activeAdmins, liveServers, serverApiKeys, apiKeyGrace } = require('../state');
+const { adminRoster, serverStaff, activeAdmins, liveServers, serverApiKeys } = require('../state');
 
-/** Legacy static token — kept only for any not-yet-migrated internal call.
- *  Every Roblox-facing, per-server route should use verifyServerApiKey instead. */
+/**
+ * Fixed shared secret between the Roblox module and this API — restored per
+ * spec. This is the ONLY thing that authenticates a request as genuinely
+ * coming from a Roblox server: events, UpdateAdmins, SetOwner, heartbeat,
+ * tracking, etc. It never changes on its own and is never shown in the
+ * dashboard — it lives only in .env and inside ShieldModule.lua's CONFIG.
+ */
 function verifyRobloxToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     if (!authHeader || authHeader !== `Bearer ${process.env.ApiToken}`) {
@@ -13,48 +18,34 @@ function verifyRobloxToken(req, res, next) {
 }
 
 /**
- * Verify the caller is the live Roblox server for THIS serverCode, using that
- * server's own rotating API key (not a single shared secret for every server).
+ * Per-server "API Key" — NOT a security boundary (verifyRobloxToken already
+ * is one), just an identifying argument so the backend knows *which* server
+ * a heartbeat/position packet belongs to, independent of the game.JobId or
+ * the human-facing serverCode. Only shown to that server's owner in the
+ * dashboard (Side Menu → API Key). Chain this AFTER verifyRobloxToken.
  *
- * - First contact for a serverCode with no stored key yet -> bootstraps (registers
- *   whatever key is presented as the server's key). This lets a fresh server or the
- *   Roblox-side Init command register its own generated key on first run.
- * - If the key was just rotated (owner regenerated it from the dashboard, or the
- *   Roblox module itself rotated it via /rotate-key), the OLD key still validates
- *   for a short grace window so an in-flight heartbeat cycle doesn't 401 and spiral
- *   into retries/disconnects.
+ * - First contact for a serverCode with no stored key yet -> bootstraps.
+ * - Mismatch is rejected (this is what makes "regenerate" from the dashboard
+ *   actually mean something — the old key stops identifying that server).
  */
 function verifyServerApiKey(req, res, next) {
     const serverCode = req.params.serverCode || req.body?.serverCode;
+    const presented  = req.body?.apiKey;
     if (!serverCode) return res.status(400).json({ error: 'serverCode required' });
-
-    const authHeader = req.headers['authorization'] || '';
-    const presented = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!presented) return res.status(401).json({ error: 'Unauthorized' });
+    if (!presented)  return res.status(400).json({ error: 'apiKey required' });
 
     const stored = serverApiKeys[serverCode];
     if (!stored) {
-        // First time we've ever heard from this server code — bootstrap its key.
         serverApiKeys[serverCode] = { key: presented, generatedAt: Date.now() };
-        req.serverCode = serverCode;
         return next();
     }
-
-    if (presented === stored.key) {
-        req.serverCode = serverCode;
-        return next();
+    if (presented !== stored.key) {
+        return res.status(401).json({ error: 'apiKey does not match this server — it may have been regenerated from the dashboard' });
     }
-
-    const grace = apiKeyGrace[serverCode];
-    if (grace && grace.previousKey === presented && grace.expiresAt > Date.now()) {
-        req.serverCode = serverCode;
-        return next();
-    }
-
-    return res.status(401).json({ error: 'Invalid or outdated API key' });
+    next();
 }
 
-/** Verify that the caller is a known admin via userId in body/query */
+/** Verify that the caller is a known admin via userId in body/query (dashboard calls) */
 function verifyAdminAccess(req, res, next) {
     const userId = parseInt(
         req.body?.senderId || req.body?.userId ||
@@ -73,6 +64,24 @@ function verifyAdminAccess(req, res, next) {
     }
     req.adminId = userId;
     next();
+}
+
+/**
+ * Punishment-style routes are called from TWO different places that both need
+ * to work: the dashboard (a logged-in admin clicking Ban/Kick/Warn) AND the
+ * Roblox module directly (Shield.Ban/Kick/Warn/FreezeToggle, e.g. from an
+ * in-game admin command). Accept either: a valid API_TOKEN means "trust the
+ * responsible/actor fields the Roblox module is sending"; otherwise fall back
+ * to normal dashboard admin verification.
+ */
+function verifyAdminOrRoblox(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader === `Bearer ${process.env.ApiToken}`) {
+        req.isRobloxCall = true;
+        req.adminId = parseInt(req.body?.responsibleId || req.body?.senderId || req.body?.userId) || null;
+        return next();
+    }
+    return verifyAdminAccess(req, res, next);
 }
 
 /** Verify server owner only — scoped to the serverCode in the request */
@@ -143,6 +152,7 @@ module.exports = {
     verifyRobloxToken,
     verifyServerApiKey,
     verifyAdminAccess,
+    verifyAdminOrRoblox,
     verifyOwnerAccess,
     verifyOnDuty,
     smartRateLimiter,

@@ -30,7 +30,7 @@ const liveServers     = {};  // serverCode -> server data
 const commandsQueue   = {};  // serverCode -> pending command array
 const oauthStates     = {};  // state -> { status, adminData, time }
 const activeAdmins    = {};  // userId -> admin session object
-const globalTracking  = {};  // userId -> { username, jobId, joinedAt }
+const playerSessions  = {};  // userId -> { joinedAt } — only for computing "time stayed" on leave
 const scheduledShutdowns = {}; // serverCode -> { executeAt, formattedTime, senderId }
 const auditLogs       = {};  // serverCode -> Array (max 25)
 const warnStore       = {};  // userId -> Array of warn objects
@@ -38,8 +38,7 @@ const banStore        = {};  // userId -> ban object
 const freezeStore     = {};  // userId -> freeze object
 const inventoryStore  = {};  // serverCode+userId -> inventory array
 const sessionChat     = {};  // serverCode -> Array (max 30, ephemeral)
-const serverApiKeys   = {};  // serverCode -> { key, generatedAt }
-const apiKeyGrace     = {};  // serverCode -> { previousKey, expiresAt } (rotation grace window)
+const serverApiKeys   = {};  // serverCode -> { key, generatedAt } — identification key, shown only to the owner
 const serverMeta      = {};  // serverCode -> { name, joinCode, ownerId }
 const serverLocations = {};  // serverCode -> Array of location markers
 const apiKeyRegenCooldowns = {}; // serverCode -> timestamp
@@ -150,7 +149,7 @@ module.exports = {
     commandsQueue,
     oauthStates,
     activeAdmins,
-    globalTracking,
+    playerSessions,
     scheduledShutdowns,
     auditLogs,
     warnStore,
@@ -159,7 +158,6 @@ module.exports = {
     inventoryStore,
     sessionChat,
     serverApiKeys,
-    apiKeyGrace,
     serverMeta,
     serverLocations,
     apiKeyRegenCooldowns,
