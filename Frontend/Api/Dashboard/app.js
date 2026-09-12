@@ -1688,7 +1688,7 @@ const Modals = {
 
     /* ── PLAYER MODAL ── */
     playerModal(player) {
-        if (!MemberList.canActOn(player.userId)) {
+      //  if (!MemberList.canActOn(player.userId)) {
             Modals.show(`
                 <div class="modal-header">
                     <img class="modal-avatar" src="${UI.avatar(player.userId)}" alt="">
@@ -1699,7 +1699,7 @@ const Modals = {
                     You cannot perform actions on this person
                 </p>`);
             return;
-        }
+     //   }
 
         const warns    = player.warns || [];
         const isFrozen = player.isFrozen;
