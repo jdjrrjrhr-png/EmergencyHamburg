@@ -71,7 +71,7 @@ app.post('/api/admin/disconnect', (req, res, next) => {
 
 // ─── SPA FALLBACK ─────────────────────────────────────────────
 // Serve index.html for all /Api/* routes (client-side routing)
-app.get(/^\/Api(\/.*)?$/, (req, res) => {
+app.get(/^\/Api/i, (req, res) => {
     res.sendFile(path.join(frontendPath, 'Api', 'index.html'));
 });
 
